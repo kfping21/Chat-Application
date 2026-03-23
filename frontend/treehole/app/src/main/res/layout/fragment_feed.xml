@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_deep"
+    android:paddingBottom="80dp">
+
+    <!-- Sticky Header -->
+    <LinearLayout
+        android:id="@+id/header_feed"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@color/bg_header"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="24dp"
+        android:paddingBottom="16dp"
+        android:elevation="8dp">
+
+        <!-- Title: 树洞 -->
+        <TextView
+            android:id="@+id/tv_feed_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:text="@string/title_feed"
+            android:textSize="@dimen/text_title"
+            android:textStyle="bold"
+            android:textColor="@color/gold_primary"
+            android:letterSpacing="0.05"
+            android:fontFamily="sans-serif-medium" />
+
+        <!-- Subtitle: 听见心声 -->
+        <TextView
+            android:id="@+id/tv_feed_subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="4dp"
+            android:text="@string/subtitle_feed"
+            android:textSize="@dimen/text_caption"
+            android:textColor="@color/text_muted"
+            android:letterSpacing="0.1" />
+    </LinearLayout>
+
+    <!-- Feed RecyclerView -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_feed"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:scrollbars="none" />
+
+</LinearLayout>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_deep">
+
+    <!-- Navigation Host -->
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/nav_host_fragment"
+        android:name="androidx.navigation.fragment.NavHostFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:defaultNavHost="true"
+        app:navGraph="@navigation/nav_graph" />
+
+    <!-- Bottom Navigation Bar (floating island style) -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_navigation"
+        android:layout_width="match_parent"
+        android:layout_height="76dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/bg_bottom_nav"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="12dp"
+        android:elevation="16dp"
+        app:itemIconTint="@color/nav_item_color"
+        app:itemTextColor="@color/nav_item_color"
+        app:itemActiveIndicatorStyle="@style/Widget.Material3.BottomNavigationView.ActiveIndicator"
+        app:itemHorizontalTranslationEnabled="false"
+        app:labelVisibilityMode="labeled"
+        app:itemIconSize="22dp"
+        app:itemRippleColor="@color/gold_dim"
+        app:menu="@menu/bottom_nav_menu" />
+
+    <!-- Center Floating Action Button (Post) -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_post"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="32dp"
+        android:src="@drawable/ic_nav_post"
+        app:tint="#0A0E14"
+        android:backgroundTint="@android:color/transparent"
+        app:backgroundTint="@android:color/transparent"
+        app:elevation="8dp"
+        app:borderWidth="0dp"
+        app:fabCustomSize="64dp"
+        app:maxImageSize="32dp"
+        android:background="@drawable/bg_fab_gradient" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

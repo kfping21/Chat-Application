@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Base warm glow -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="92dp"
+                android:startColor="#55FBBF24"
+                android:endColor="#00FBBF24" />
+        </shape>
+    </item>
+
+    <item
+        android:left="48dp"
+        android:right="48dp"
+        android:top="92dp"
+        android:bottom="18dp">
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="26dp"
+                android:startColor="#453A2A"
+                android:endColor="#003A2A" />
+        </shape>
+    </item>
+</layer-list>

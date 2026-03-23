@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Backgrounds -->
+    <color name="bg_primary">#08080C14</color>
+    <color name="bg_deep">#FF080C14</color>
+    <color name="bg_card">#FF1B2436</color>
+    <color name="bg_card_dark">#FF0F172A</color>
+    <color name="bg_input">#FF1E2940</color>
+    <color name="bg_header">#CC080C14</color>
+
+    <!-- Golden Accent -->
+    <color name="gold_primary">#FFF5C024</color>
+    <color name="gold_secondary">#FFFFA726</color>
+    <color name="gold_dim">#33F5C024</color>
+    <color name="gold_border">#4DF5C024</color>
+
+    <!-- Text -->
+    <color name="text_primary">#FFE0E3EB</color>
+    <color name="text_secondary">#FFC5C9D3</color>
+    <color name="text_muted">#FF8B93A6</color>
+    <color name="text_hint">#FF6B7280</color>
+
+    <!-- Borders -->
+    <color name="border_card">#14FFFFFF</color>
+    <color name="border_gold">#1AFFA726</color>
+    <color name="border_gold_bright">#66F5C024</color>
+
+    <!-- Mood Colors -->
+    <color name="mood_lonely">#FF4C7BFE</color>
+    <color name="mood_lonely_end">#FF673AB7</color>
+    <color name="mood_happy">#FFF5C024</color>
+    <color name="mood_happy_end">#FFFFA726</color>
+    <color name="mood_regret">#FF673AB7</color>
+    <color name="mood_regret_end">#FF9C27B0</color>
+    <color name="mood_anxious">#FFF472B6</color>
+    <color name="mood_anxious_end">#FFEC4899</color>
+    <color name="mood_calm">#FF34D399</color>
+    <color name="mood_calm_end">#FF10B981</color>
+    <color name="mood_lost">#FFFB923C</color>
+    <color name="mood_lost_end">#FFF59E0B</color>
+    <color name="mood_touched">#FFEC4899</color>
+    <color name="mood_touched_end">#FFF87171</color>
+    <color name="mood_release">#FF8B5CF6</color>
+    <color name="mood_release_end">#FFA78BFA</color>
+
+    <!-- System -->
+    <color name="unread_badge">#FFef4444</color>
+    <color name="divider">#0DFFFFFF</color>
+</resources>
