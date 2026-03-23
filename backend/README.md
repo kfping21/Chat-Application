@@ -46,11 +46,17 @@ npm run start
 - `POST /api/v1/comments/:id/like`
 - `DELETE /api/v1/comments/:id/like`
 - `GET /api/v1/me/summary`
+- `GET /api/v1/encounters/recent?limit=20`
 - `GET /api/v1/notifications?page=1&limit=20`
 - `POST /api/v1/notifications/:id/read`
 - `POST /api/v1/notifications/read-all`
 - `GET /api/v1/messages/inbox?page=1&limit=20`
 - `POST /api/v1/messages`
 - `POST /api/v1/messages/:id/read`
+
+补充说明：
+- `GET /api/v1/home/feed`、`GET /api/v1/posts/:id`、`GET /api/v1/me/summary` 现已返回帖子 `topics` 字段。
+- `POST /api/v1/posts` 的 `topicIds` 会校验是否都存在，不存在会返回 `400`。
+- `POST /api/v1/messages` 发送私信时会自动更新双方 `encounters` 记录。
 
 默认通过请求头 `X-User-Id` 指定用户（不传则默认用户 `1`）。

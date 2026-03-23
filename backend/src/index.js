@@ -9,7 +9,7 @@ const port = Number(process.env.PORT) || 3000;
 function withCorsHeaders(headers = {}) {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type,Authorization,X-User-Id",
     ...headers
   };
@@ -97,6 +97,42 @@ function notificationReadPath(pathname) {
   return match ? Number(match[1]) : null;
 }
 
+function uniquePositiveIntegers(values) {
+  return [...new Set(values.filter((v) => Number.isInteger(v) && v > 0))];
+}
+
+async function ensureTopicsExist(topicIds) {
+  if (topicIds.length === 0) return;
+  const placeholders = topicIds.map(() => "?").join(",");
+  const rows = await query(`SELECT id FROM topics WHERE id IN (${placeholders})`, topicIds);
+  const found = new Set(rows.map((row) => row.id));
+  const missing = topicIds.filter((id) => !found.has(id));
+  if (missing.length > 0) {
+    const err = new Error(`topicIds contain non-existing ids: ${missing.join(",")}`);
+    err.statusCode = 400;
+    throw err;
+  }
+}
+
+async function getTopicsMap(postIds) {
+  if (postIds.length === 0) return new Map();
+  const placeholders = postIds.map(() => "?").join(",");
+  const rows = await query(
+    `SELECT pt.post_id, t.id, t.name
+     FROM post_topics pt
+     JOIN topics t ON t.id = pt.topic_id
+     WHERE pt.post_id IN (${placeholders})
+     ORDER BY t.id ASC`,
+    postIds
+  );
+  const topicsMap = new Map();
+  for (const row of rows) {
+    if (!topicsMap.has(row.post_id)) topicsMap.set(row.post_id, []);
+    topicsMap.get(row.post_id).push({ id: row.id, name: row.name });
+  }
+  return topicsMap;
+}
+
 async function ensureUserExists(userId) {
   const user = await queryOne("SELECT id FROM users WHERE id = ? LIMIT 1", [userId]);
   if (!user) {
@@ -131,6 +167,7 @@ async function getPostDetail(postId) {
   );
   if (!post) return null;
 
+  const topicsMap = await getTopicsMap([postId]);
   const comments = await query(
     `SELECT c.id, c.floor_no, c.content, c.likes_count, c.created_at
      FROM comments c
@@ -140,7 +177,7 @@ async function getPostDetail(postId) {
   );
 
   return {
-    post: mapPostRow(post),
+    post: { ...mapPostRow(post), topics: topicsMap.get(postId) || [] },
     comments: comments.map((row) => ({
       id: row.id,
       floorNo: row.floor_no,
@@ -195,7 +232,12 @@ async function route(req, res) {
        LIMIT ? OFFSET ?`,
       [limit, offset]
     );
-    return json(res, 200, { page, limit, items: rows.map(mapPostRow) });
+    const topicsMap = await getTopicsMap(rows.map((row) => row.id));
+    return json(res, 200, {
+      page,
+      limit,
+      items: rows.map((row) => ({ ...mapPostRow(row), topics: topicsMap.get(row.id) || [] }))
+    });
   }
 
   if (req.method === "GET" && url.pathname === "/api/v1/discover/topics/hot") {
@@ -228,7 +270,7 @@ async function route(req, res) {
     const content = String(body.content || "").trim();
     const emotionCode = String(body.emotionCode || "").trim();
     const allowComments = body.allowComments === false ? 0 : 1;
-    const topicIds = Array.isArray(body.topicIds) ? body.topicIds.filter((v) => Number.isInteger(v) && v > 0) : [];
+    const topicIds = Array.isArray(body.topicIds) ? uniquePositiveIntegers(body.topicIds) : [];
 
     if (!content || content.length > 500) {
       const err = new Error("content is required and must be <= 500 chars");
@@ -247,6 +289,7 @@ async function route(req, res) {
       err.statusCode = 400;
       throw err;
     }
+    await ensureTopicsExist(topicIds);
 
     const insertedPostId = await withTransaction(async (conn) => {
       const [inserted] = await conn.query(
@@ -439,6 +482,7 @@ async function route(req, res) {
        LIMIT 10`,
       [userId]
     );
+    const recentPostTopicsMap = await getTopicsMap(recentPosts.map((row) => row.id));
 
     return json(res, 200, {
       profile: { id: user.id, anonymousName: user.anonymous_name, joinedAt: user.joined_at },
@@ -451,10 +495,37 @@ async function route(req, res) {
         id: row.id,
         content: row.content,
         emotionName: row.emotion_name,
+        topics: recentPostTopicsMap.get(row.id) || [],
         likesCount: row.likes_count,
         commentsCount: row.comments_count,
         createdAt: row.created_at,
         timeText: relativeTime(row.created_at)
+      }))
+    });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/v1/encounters/recent") {
+    const userId = getUserId(req);
+    await ensureUserExists(userId);
+    const limitRaw = Number(url.searchParams.get("limit"));
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(100, Math.floor(limitRaw)) : 20;
+    const rows = await query(
+      `SELECT e.target_user_id, e.met_at, u.anonymous_name, u.avatar_color
+       FROM encounters e
+       JOIN users u ON u.id = e.target_user_id
+       WHERE e.user_id = ?
+       ORDER BY e.met_at DESC
+       LIMIT ?`,
+      [userId, limit]
+    );
+    return json(res, 200, {
+      limit,
+      items: rows.map((row) => ({
+        userId: row.target_user_id,
+        anonymousName: row.anonymous_name,
+        avatarColor: row.avatar_color,
+        metAt: row.met_at,
+        timeText: relativeTime(row.met_at)
       }))
     });
   }
@@ -570,11 +641,26 @@ async function route(req, res) {
     }
 
     await ensureUserExists(receiverUserId);
-    const result = await query(
-      `INSERT INTO private_messages (sender_user_id, receiver_user_id, content, is_read)
-       VALUES (?, ?, ?, 0)`,
-      [senderUserId, receiverUserId, content]
-    );
+    const result = await withTransaction(async (conn) => {
+      const [inserted] = await conn.query(
+        `INSERT INTO private_messages (sender_user_id, receiver_user_id, content, is_read)
+         VALUES (?, ?, ?, 0)`,
+        [senderUserId, receiverUserId, content]
+      );
+      await conn.query(
+        `INSERT INTO encounters (user_id, target_user_id, met_at)
+         VALUES (?, ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE met_at = VALUES(met_at)`,
+        [senderUserId, receiverUserId]
+      );
+      await conn.query(
+        `INSERT INTO encounters (user_id, target_user_id, met_at)
+         VALUES (?, ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE met_at = VALUES(met_at)`,
+        [receiverUserId, senderUserId]
+      );
+      return inserted;
+    });
     const row = await queryOne(
       `SELECT id, sender_user_id, receiver_user_id, content, is_read, created_at
        FROM private_messages
