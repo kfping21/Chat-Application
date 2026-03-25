@@ -1,4 +1,4 @@
-# Treehole Backend (MySQL)
+# Treehole Backend (Node.js + MySQL)
 
 ## 1) 环境变量
 
@@ -15,23 +15,44 @@ DB_NAME=treehole
 
 ## 2) 初始化数据库
 
-你已建库后，执行一次：
-
 ```sql
-source d:/树洞聊天软件/sql/init.sql;
+source D:/Chat-Application/backend/sql/init.sql;
 ```
 
 ## 3) 启动
 
 ```bash
-cd d:\树洞聊天软件
+cd D:\Chat-Application\backend
 npm install
 npm run start
 ```
 
 访问 `http://localhost:3000/` 可看到服务说明。
 
-## 4) 当前 API
+## 4) 作业新增 API（统一响应结构）
+
+新增接口统一返回：
+
+```json
+{ "code": 200, "message": "ok", "data": {} }
+```
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/todos?page=1&size=10&completed=false`
+- `POST /api/todos`
+- `GET /api/todos/:id`
+- `PUT /api/todos/:id`
+- `DELETE /api/todos/:id`
+
+认证方式：
+
+- 通过 `Authorization: Bearer <token>` 访问 `/api/*` 作业接口
+
+## 5) 历史接口（兼容保留）
+
+以下 `/api/v1/*` 接口继续可用，供原项目前后端使用：
 
 - `GET /health`
 - `GET /api/v1/ping`
@@ -54,9 +75,8 @@ npm run start
 - `POST /api/v1/messages`
 - `POST /api/v1/messages/:id/read`
 
-补充说明：
-- `GET /api/v1/home/feed`、`GET /api/v1/posts/:id`、`GET /api/v1/me/summary` 现已返回帖子 `topics` 字段。
-- `POST /api/v1/posts` 的 `topicIds` 会校验是否都存在，不存在会返回 `400`。
-- `POST /api/v1/messages` 发送私信时会自动更新双方 `encounters` 记录。
+## 6) 测试
 
-默认通过请求头 `X-User-Id` 指定用户（不传则默认用户 `1`）。
+```bash
+npm test
+```
