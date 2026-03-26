@@ -1,18 +1,33 @@
-# API 设计文档
+# API 使用说明（树洞聊天业务）
 
 ## 1. 基础信息
 
 - Base URL：`http://localhost:3000`
-- 新增作业接口前缀：`/api`
-- 兼容保留历史接口前缀：`/api/v1`
-- 数据格式：`application/json; charset=utf-8`
-- OpenAPI 文档：`docs/api.yaml`
+- 作业接口前缀：`/api`
+- 历史接口前缀：`/api/v1`（保持兼容）
+- OpenAPI：`docs/api.yaml`
+- 测试前置：配置 `backend/.env` 数据库连接并执行 `backend/sql/init.sql`
 
----
+### 1.1 数据库连接配置
 
-## 2. 统一响应结构（作业接口）
+复制 `backend/.env.example` 为 `backend/.env`，按你的 MySQL 实际账号修改：
 
-所有 `/api/*` 新增接口统一返回：
+```env
+PORT=3000
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=你的MySQL密码
+DB_NAME=treehole
+```
+
+如果报错：
+
+`Access denied for user 'root'@'localhost' (using password: NO)`
+
+说明后端没有拿到正确密码，重点检查 `DB_PASSWORD` 是否为空、`.env` 是否放在 `backend/` 根目录。
+
+## 2. 统一响应格式（作业接口）
 
 ```json
 {
@@ -22,98 +37,92 @@
 }
 ```
 
-典型状态码：
+## 3. 认证接口
 
-- `200` 请求成功
+### 3.1 注册
+
+- `POST /api/auth/register`
+- Body:
+
+```json
+{
+  "username": "u001",
+  "password": "123456",
+  "displayName": "匿名用户001"
+}
+```
+
+### 3.2 登录
+
+- `POST /api/auth/login`
+- 使用注册成功后的用户名与密码（用户名映射 `users.anonymous_name`，密码映射 `users.avatar_color`）
+
+### 3.3 登出
+
+- `POST /api/auth/logout`
+- Header：`Authorization: Bearer <token>`
+
+## 4. 核心业务资源（帖子）CRUD
+
+### 4.1 列表（分页+筛选）
+
+- `GET /api/posts?page=1&size=10&emotionCode=happy`
+- `emotionCode` 可选，对应 `emotions.code`
+
+### 4.2 创建帖子
+
+- `POST /api/posts`
+- Header：`Authorization: Bearer <token>`
+- Body:
+
+```json
+{
+  "content": "今天有点累，但我在坚持。",
+  "emotionCode": "happy",
+  "allowComments": true,
+  "isPublic": true
+}
+```
+
+### 4.3 获取单个帖子
+
+- `GET /api/posts/{id}`
+
+### 4.4 更新帖子（作者本人）
+
+- `PUT /api/posts/{id}`
+- Header：`Authorization: Bearer <token>`
+- Body（至少一个字段）：
+
+```json
+{
+  "content": "更新后的内容",
+  "emotionCode": "calm",
+  "allowComments": false,
+  "isPublic": true
+}
+```
+
+### 4.5 删除帖子（作者本人）
+
+- `DELETE /api/posts/{id}`
+- Header：`Authorization: Bearer <token>`
+
+## 5. 状态码
+
+- `200` 成功
 - `201` 创建成功
 - `400` 参数错误
-- `401` 未认证或认证失败
-- `404` 资源不存在
+- `401` 未授权
+- `404` 资源不存在（或无权限）
 - `500` 服务内部错误
 
----
+## 6. 测试建议（至少 5 条，含 auth + post）
 
-## 3. 认证 API
-
-### POST `/api/auth/register`
-
-注册用户并返回 Token。
-
-请求：
-
-```json
-{
-  "username": "alice",
-  "password": "alice123",
-  "displayName": "Alice"
-}
-```
-
-### POST `/api/auth/login`
-
-用户登录并返回 Token。
-
-### POST `/api/auth/logout`
-
-用户登出（需 `Authorization: Bearer <token>`）。
-
----
-
-## 4. Todo 资源 API（CRUD + 分页筛选）
-
-### GET `/api/todos?page=1&size=10&completed=false`
-
-获取当前登录用户 Todo 列表，支持分页和按完成状态筛选。
-
-### POST `/api/todos`
-
-创建 Todo：
-
-```json
-{
-  "title": "完成 API 作业",
-  "completed": false
-}
-```
-
-### GET `/api/todos/:id`
-
-获取单个 Todo。
-
-### PUT `/api/todos/:id`
-
-更新 Todo（可更新 `title` 与 `completed`）：
-
-```json
-{
-  "title": "已完成 API 作业",
-  "completed": true
-}
-```
-
-### DELETE `/api/todos/:id`
-
-删除 Todo。
-
----
-
-## 5. 鉴权方式
-
-作业接口使用 Bearer Token 鉴权：
-
-```http
-Authorization: Bearer <token>
-```
-
----
-
-## 6. 历史业务接口说明
-
-当前项目原有接口（`/api/v1/*`）继续可用，主要包含：
-
-- 帖子流、发帖、评论、点赞
-- 通知与已读
-- 私信收件箱与消息已读
-- 个人摘要与相遇用户
-
-这些接口沿用原有响应结构，不影响已有客户端调用。
+1. `POST /api/auth/register`：注册新用户（期望 `201`）。
+2. `POST /api/auth/login`：用刚注册账号登录（期望 `200`，返回 token）。
+3. `POST /api/posts`：携带 Bearer token 创建帖子（期望 `201`）。
+4. `GET /api/posts?page=1&size=10&emotionCode=happy`：分页+筛选（期望 `200`）。
+5. `PUT /api/posts/{id}`：更新自己创建的帖子（期望 `200`）。
+6. `DELETE /api/posts/{id}`：删除自己创建的帖子（期望 `200`）。
+7. 负例：不带 token 调 `POST /api/posts`（期望 `401`）。

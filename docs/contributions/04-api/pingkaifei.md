@@ -1,21 +1,46 @@
-# 04-API 个人贡献说明（pingkaifei）
+# API 设计与实现贡献说明
+姓名：pingkaifei
+学号：待补充
+日期：2026-03-26
 
-## 本次提交内容
+## 我完成的工作
 
-- 设计并编写 OpenAPI 规范文档：`docs/api.yaml`
-- 编写 API 使用说明：`docs/api.md`
-- 按规范路径实现后端 API 路由：`backend/app/routes/`
-  - `assignmentRoutes.js`
-  - `authRoutes.js`
-  - `todoRoutes.js`
-  - `utils/responseUtils.js`
-  - `store/assignmentStore.js`
-- 后端应用入口与数据库层迁移到 `backend/app/`
-  - `backend/app/index.js`
-  - `backend/app/db.js`
+### 1. API 设计
+- [x] 用户认证 API
+- [x] 业务资源 API
+- [x] 查询接口设计
 
-## 说明
+### 2. 文档编写
+- [x] OpenAPI 文档
+- [x] API 使用说明
 
-- 作业新增接口统一采用响应结构：`{ code, message, data }`
-- 覆盖认证接口（注册、登录、登出）与 Todo 资源 CRUD（含分页与筛选）
-- 保留项目历史 `/api/v1/*` 接口兼容，不影响原有功能调用
+### 3. 前端实现
+- [ ] HTTP 客户端配置
+- [ ] API 调用函数封装
+- [ ] Mock 数据配置
+
+### 4. 后端实现
+- [x] API 路由定义
+- [x] 业务逻辑处理
+- [x] 错误处理
+
+### 5. 测试
+- [x] Postman/Apifox 测试集合
+- [x] 后端单元测试
+- [x] 测试用例数量：7 个（auth + post）
+
+## PR 链接
+- PR #X: 待补充
+
+## 遇到的问题和解决
+1. 问题：本地启动后出现数据库连接失败（`Access denied ... using password: NO`）。  
+   解决：在 `backend/` 下创建并配置 `.env`，并在入口显式按绝对路径加载环境变量。
+
+2. 问题：接口测试时服务出现 `ERR_HTTP_HEADERS_SENT`。  
+   解决：路由处理函数在响应后统一返回 `true`，避免重复写响应头。
+
+3. 问题：端口 `3000` 被占用（`EADDRINUSE`）。  
+   解决：停止占用进程或改用新端口后再启动服务。
+
+## 心得体会
+本次实践让我更清楚 RESTful 设计不仅是路径和方法规范，更要和真实业务模型对齐。将接口从示例资源调整为树洞帖子资源后，文档、实现、测试的一致性更强，也更符合协作开发中的契约思维。
