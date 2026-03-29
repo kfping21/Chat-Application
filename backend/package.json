@@ -2,10 +2,11 @@
   "name": "treehole-backend",
   "version": "0.1.0",
   "description": "Minimal backend for Treehole chat app",
-  "main": "src/index.js",
+  "main": "app/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node src/index.js"
+    "start": "node app/index.js",
+    "dev": "node app/index.js",
+    "test": "node --test tests/**/*.test.js"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

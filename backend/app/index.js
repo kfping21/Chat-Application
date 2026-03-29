@@ -1,15 +1,17 @@
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, "..", ".env") });
 
 const http = require("http");
 const { URL } = require("url");
 const { query, queryOne, withTransaction, healthCheck, closePool } = require("./db");
+const { handleAssignmentRoutes } = require("./routes/assignmentRoutes");
 
 const port = Number(process.env.PORT) || 3000;
 
 function withCorsHeaders(headers = {}) {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type,Authorization,X-User-Id",
     ...headers
   };
@@ -218,6 +220,9 @@ async function route(req, res) {
 
   if (req.method === "GET" && url.pathname === "/api/v1/ping") {
     return json(res, 200, { message: "pong" });
+  }
+  if (await handleAssignmentRoutes(req, res, url, { parseJsonBody, json })) {
+    return;
   }
 
   if (req.method === "GET" && url.pathname === "/api/v1/home/feed") {
@@ -701,6 +706,7 @@ const server = http.createServer(async (req, res) => {
   try {
     await route(req, res);
   } catch (err) {
+    if (res.headersSent) return;
     const statusCode = err.statusCode || 500;
     return json(res, statusCode, {
       error: statusCode === 500 ? "internal server error" : err.message,
@@ -719,6 +725,10 @@ process.on("SIGTERM", async () => {
   process.exit(0);
 });
 
-server.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
-});
+if (require.main === module) {
+  server.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
+  });
+}
+
+module.exports = { server };

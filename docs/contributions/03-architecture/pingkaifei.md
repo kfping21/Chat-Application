@@ -29,7 +29,7 @@
 - [x] 其他文档（api.md、backend.md）
 
 ## PR 链接
-- PR #X: https://github.com/xxx/xxx/pull/X
+- PR #X: https://github.com/kfping21/Chat-Application/pull/3
 
 ## 遇到的问题和解决
 

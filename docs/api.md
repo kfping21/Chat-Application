@@ -1,147 +1,128 @@
-# API 设计文档
+# API 使用说明（树洞聊天业务）
 
 ## 1. 基础信息
 
 - Base URL：`http://localhost:3000`
-- 接口前缀：`/api/v1`
-- 数据格式：`application/json; charset=utf-8`
-- 认证方式：通过请求头 `X-User-Id` 传递用户 ID（未传默认 `1`）
+- 作业接口前缀：`/api`
+- 历史接口前缀：`/api/v1`（保持兼容）
+- OpenAPI：`docs/api.yaml`
+- 测试前置：配置 `backend/.env` 数据库连接并执行 `backend/sql/init.sql`
 
----
+### 1.1 数据库连接配置
 
-## 2. 通用约定
+复制 `backend/.env.example` 为 `backend/.env`，按你的 MySQL 实际账号修改：
 
-- 成功：返回 `2xx` 与 JSON 数据
-- 失败：返回 `{ "error": "..." }`
-- 分页参数：`page`（默认 1）、`limit`（默认 20，按接口有上限）
-- CORS 方法：`GET, POST, DELETE, OPTIONS`
+```env
+PORT=3000
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=你的MySQL密码
+DB_NAME=treehole
+```
 
----
+如果报错：
 
-## 3. 健康与基础接口
+`Access denied for user 'root'@'localhost' (using password: NO)`
 
-### GET `/`
-返回服务说明。
+说明后端没有拿到正确密码，重点检查 `DB_PASSWORD` 是否为空、`.env` 是否放在 `backend/` 根目录。
 
-### GET `/health`
-检查服务与数据库连通性。
+## 2. 统一响应格式（作业接口）
 
-### GET `/api/v1/ping`
-连通性测试，返回 `pong`。
-
----
-
-## 4. 帖子与评论
-
-### GET `/api/v1/home/feed?page=1&limit=20`
-获取公开帖子流（包含 `emotion`、`topics`、点赞/评论计数）。
-
-### GET `/api/v1/discover/topics/hot`
-获取热门话题列表。
-
-### GET `/api/v1/meta/emotions`
-获取情绪字典列表。
-
-### POST `/api/v1/posts`
-创建帖子。
-
-请求示例：
 ```json
 {
-  "content": "今天有点累，但也有一点点开心。",
+  "code": 200,
+  "message": "ok",
+  "data": {}
+}
+```
+
+## 3. 认证接口
+
+### 3.1 注册
+
+- `POST /api/auth/register`
+- Body:
+
+```json
+{
+  "username": "u001",
+  "password": "123456",
+  "displayName": "匿名用户001"
+}
+```
+
+### 3.2 登录
+
+- `POST /api/auth/login`
+- 使用注册成功后的用户名与密码（用户名映射 `users.anonymous_name`，密码映射 `users.avatar_color`）
+
+### 3.3 登出
+
+- `POST /api/auth/logout`
+- Header：`Authorization: Bearer <token>`
+
+## 4. 核心业务资源（帖子）CRUD
+
+### 4.1 列表（分页+筛选）
+
+- `GET /api/posts?page=1&size=10&emotionCode=happy`
+- `emotionCode` 可选，对应 `emotions.code`
+
+### 4.2 创建帖子
+
+- `POST /api/posts`
+- Header：`Authorization: Bearer <token>`
+- Body:
+
+```json
+{
+  "content": "今天有点累，但我在坚持。",
   "emotionCode": "happy",
   "allowComments": true,
-  "topicIds": [1, 2]
+  "isPublic": true
 }
 ```
 
-说明：
-- `content` 必填，长度 `<= 500`
-- `emotionCode` 必填且必须存在
-- `topicIds` 可选，若存在必须是已存在话题 ID
+### 4.3 获取单个帖子
 
-### GET `/api/v1/posts/:id`
-获取帖子详情（`post + comments`）。
+- `GET /api/posts/{id}`
 
-### POST `/api/v1/posts/:id/comments`
-给帖子发表评论。
+### 4.4 更新帖子（作者本人）
 
-请求示例：
+- `PUT /api/posts/{id}`
+- Header：`Authorization: Bearer <token>`
+- Body（至少一个字段）：
+
 ```json
 {
-  "content": "抱抱你，你并不孤单。"
+  "content": "更新后的内容",
+  "emotionCode": "calm",
+  "allowComments": false,
+  "isPublic": true
 }
 ```
 
-说明：`content` 必填，长度 `<= 300`。
+### 4.5 删除帖子（作者本人）
 
-### POST `/api/v1/posts/:id/like`
-点赞帖子。
+- `DELETE /api/posts/{id}`
+- Header：`Authorization: Bearer <token>`
 
-### DELETE `/api/v1/posts/:id/like`
-取消点赞帖子。
+## 5. 状态码
 
-### POST `/api/v1/comments/:id/like`
-点赞评论。
+- `200` 成功
+- `201` 创建成功
+- `400` 参数错误
+- `401` 未授权
+- `404` 资源不存在（或无权限）
+- `500` 服务内部错误
 
-### DELETE `/api/v1/comments/:id/like`
-取消点赞评论。
+## 6. 测试建议（至少 5 条，含 auth + post）
 
----
-
-## 5. 个人与相遇
-
-### GET `/api/v1/me/summary`
-获取我的概览信息：
-- `profile`
-- `stats`（发帖数、被共鸣数、相遇数）
-- `myPosts`（含 `topics`）
-
-### GET `/api/v1/encounters/recent?limit=20`
-获取最近相遇用户列表。
-
----
-
-## 6. 通知
-
-### GET `/api/v1/notifications?page=1&limit=20`
-获取通知列表与未读数。
-
-### POST `/api/v1/notifications/:id/read`
-将单条通知设为已读。
-
-### POST `/api/v1/notifications/read-all`
-将当前用户全部通知设为已读。
-
----
-
-## 7. 私信
-
-### GET `/api/v1/messages/inbox?page=1&limit=20`
-获取收件箱消息列表与未读数。
-
-### POST `/api/v1/messages`
-发送私信（发送后会自动更新双方 `encounters` 记录）。
-
-请求示例：
-```json
-{
-  "receiverUserId": 2,
-  "content": "晚安，愿你今晚有个好梦。"
-}
-```
-
-约束：
-- `receiverUserId` 必填且不能等于自己
-- `content` 必填，长度 `<= 500`
-
-### POST `/api/v1/messages/:id/read`
-将单条私信设为已读（仅接收方可操作）。
-
----
-
-## 8. 典型错误码
-
-- `400`：参数错误（如长度超限、话题不存在、发给自己）
-- `404`：资源不存在（用户/帖子/评论/消息/通知）
-- `500`：服务内部错误
+1. `POST /api/auth/register`：注册新用户（期望 `201`）。
+2. `POST /api/auth/login`：用刚注册账号登录（期望 `200`，返回 token）。
+3. `POST /api/posts`：携带 Bearer token 创建帖子（期望 `201`）。
+4. `GET /api/posts?page=1&size=10&emotionCode=happy`：分页+筛选（期望 `200`）。
+5. `PUT /api/posts/{id}`：更新自己创建的帖子（期望 `200`）。
+6. `DELETE /api/posts/{id}`：删除自己创建的帖子（期望 `200`）。
+7. 负例：不带 token 调 `POST /api/posts`（期望 `401`）。
