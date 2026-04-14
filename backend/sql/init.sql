@@ -7,9 +7,11 @@ USE treehole;
 CREATE TABLE IF NOT EXISTS users (
   id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   anonymous_name VARCHAR(50) NOT NULL,
+  auth_password VARCHAR(100) NOT NULL DEFAULT '',
   avatar_color VARCHAR(20) NOT NULL DEFAULT 'yellow',
   joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  status TINYINT NOT NULL DEFAULT 1
+  status TINYINT NOT NULL DEFAULT 1,
+  UNIQUE KEY uq_users_anonymous_name (anonymous_name)
 );
 
 CREATE TABLE IF NOT EXISTS emotions (
@@ -105,6 +107,17 @@ CREATE TABLE IF NOT EXISTS notifications (
   INDEX idx_notifications_user_read (user_id, is_read, created_at)
 );
 
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  token VARCHAR(120) NOT NULL,
+  is_active TINYINT NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_user_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_user_sessions_token (token),
+  INDEX idx_user_sessions_user_active_created (user_id, is_active, created_at)
+);
+
 CREATE TABLE IF NOT EXISTS private_messages (
   id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   sender_user_id BIGINT UNSIGNED NOT NULL,
@@ -138,15 +151,21 @@ INSERT INTO topics (name, is_hot) VALUES
   ('感情故事', 1)
 ON DUPLICATE KEY UPDATE is_hot = VALUES(is_hot);
 
-INSERT INTO users (id, anonymous_name, avatar_color)
-VALUES (1, '匿名的灵魂', 'yellow')
-ON DUPLICATE KEY UPDATE anonymous_name = VALUES(anonymous_name), avatar_color = VALUES(avatar_color);
+INSERT INTO users (id, anonymous_name, auth_password, avatar_color)
+VALUES (1, '匿名的灵魂', 'pass123', 'yellow')
+ON DUPLICATE KEY UPDATE
+  anonymous_name = VALUES(anonymous_name),
+  auth_password = VALUES(auth_password),
+  avatar_color = VALUES(avatar_color);
 
-INSERT INTO users (id, anonymous_name, avatar_color)
+INSERT INTO users (id, anonymous_name, auth_password, avatar_color)
 VALUES
-  (2, '温柔的回声', 'blue'),
-  (3, '夜航星', 'purple')
-ON DUPLICATE KEY UPDATE anonymous_name = VALUES(anonymous_name), avatar_color = VALUES(avatar_color);
+  (2, '温柔的回声', 'pass123', 'blue'),
+  (3, '夜航星', 'pass123', 'purple')
+ON DUPLICATE KEY UPDATE
+  anonymous_name = VALUES(anonymous_name),
+  auth_password = VALUES(auth_password),
+  avatar_color = VALUES(avatar_color);
 
 INSERT INTO posts (id, user_id, content, emotion_id, allow_comments, is_public, likes_count, comments_count, created_at)
 VALUES

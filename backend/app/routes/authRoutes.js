@@ -4,7 +4,7 @@ const {
   createSession,
   getSession,
   deleteSession
-} = require("./store/assignmentStore");
+} = require("./store");
 const { sendApiJson, createApiError, parseApiBody } = require("./utils/responseUtils");
 
 function getBearerToken(req) {

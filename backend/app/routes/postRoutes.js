@@ -1,11 +1,12 @@
 const { requireAuth } = require("./authRoutes");
 const {
   listPosts,
+  listPostsByTopic,
   createPost,
-  getPostById,
+  getPostDetail,
   updatePost,
   deletePost
-} = require("./store/assignmentStore");
+} = require("./store");
 const { sendApiJson, createApiError, parseApiBody } = require("./utils/responseUtils");
 
 function parsePostId(pathname) {
@@ -28,6 +29,18 @@ async function handlePostRoutes(req, res, url, deps) {
     return true;
   }
 
+  const topicPostsMatch = url.pathname.match(/^\/api\/topics\/(\d+)\/posts$/);
+  if (req.method === "GET" && topicPostsMatch) {
+    const topicId = Number(topicPostsMatch[1]);
+    const pageRaw = Number(url.searchParams.get("page"));
+    const sizeRaw = Number(url.searchParams.get("size"));
+    const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
+    const size = Number.isFinite(sizeRaw) && sizeRaw > 0 ? Math.min(50, Math.floor(sizeRaw)) : 10;
+    const result = await listPostsByTopic({ topicId, page, size });
+    sendApiJson(json, res, 200, "ok", result);
+    return true;
+  }
+
   if (req.method === "POST" && url.pathname === "/api/posts") {
     const { userId } = await requireAuth(req);
     const body = await parseApiBody(parseJsonBody, req);
@@ -35,10 +48,12 @@ async function handlePostRoutes(req, res, url, deps) {
     const emotionCode = String(body.emotionCode || "").trim();
     const allowComments = body.allowComments === false ? false : true;
     const isPublic = body.isPublic === false ? false : true;
+    const topicIds = Array.isArray(body.topicIds) ? body.topicIds : [];
     if (!content || content.length > 500) throw createApiError(400, "content is required and must be <= 500 chars");
     if (!emotionCode) throw createApiError(400, "emotionCode is required");
 
-    const created = await createPost(userId, { content, emotionCode, allowComments, isPublic });
+    const created = await createPost(userId, { content, emotionCode, allowComments, isPublic, topicIds });
+    if (created === false) throw createApiError(400, "topicIds contain non-existing ids");
     if (!created) throw createApiError(400, "emotionCode does not exist");
     sendApiJson(json, res, 201, "created", created);
     return true;
@@ -46,9 +61,10 @@ async function handlePostRoutes(req, res, url, deps) {
 
   const postId = parsePostId(url.pathname);
   if (postId && req.method === "GET") {
-    const post = await getPostById(postId);
+    const detail = await getPostDetail(postId);
+    const post = detail ? detail.post : null;
     if (!post || !post.isPublic) throw createApiError(404, "post not found");
-    sendApiJson(json, res, 200, "ok", post);
+    sendApiJson(json, res, 200, "ok", detail);
     return true;
   }
 
@@ -74,11 +90,15 @@ async function handlePostRoutes(req, res, url, deps) {
       if (typeof body.isPublic !== "boolean") throw createApiError(400, "isPublic must be boolean");
       payload.isPublic = body.isPublic;
     }
+    if (body.topicIds !== undefined) {
+      if (!Array.isArray(body.topicIds)) throw createApiError(400, "topicIds must be array");
+      payload.topicIds = body.topicIds;
+    }
     if (Object.keys(payload).length === 0) throw createApiError(400, "at least one field is required");
 
     const updated = await updatePost(userId, postId, payload);
     if (updated === null) throw createApiError(404, "post not found");
-    if (updated === false) throw createApiError(400, "emotionCode does not exist");
+    if (updated === false) throw createApiError(400, "emotionCode or topicIds is invalid");
     sendApiJson(json, res, 200, "updated", updated);
     return true;
   }

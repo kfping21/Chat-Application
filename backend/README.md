@@ -40,11 +40,31 @@ npm run start
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `POST /api/auth/logout`
-- `GET /api/todos?page=1&size=10&completed=false`
-- `POST /api/todos`
-- `GET /api/todos/:id`
-- `PUT /api/todos/:id`
-- `DELETE /api/todos/:id`
+- `GET /api/meta/emotions`
+- `GET /api/discover/topics/hot`
+- `GET /api/posts?page=1&size=10&emotionCode=happy`
+- `POST /api/posts`
+- `GET /api/posts/:id`
+- `PUT /api/posts/:id`
+- `DELETE /api/posts/:id`
+- `POST /api/posts/:id/comments`
+- `POST /api/posts/:id/like`
+- `DELETE /api/posts/:id/like`
+- `POST /api/comments/:id/like`
+- `DELETE /api/comments/:id/like`
+- `GET /api/me/summary`
+- `GET /api/encounters/recent?limit=20`
+- `GET /api/notifications?page=1&size=20`
+- `POST /api/notifications/:id/read`
+- `POST /api/notifications/read-all`
+- `GET /api/messages/inbox?page=1&size=20`
+- `POST /api/messages`
+- `POST /api/messages/:id/read`
+
+实时私信（WebSocket）：
+
+- `ws://localhost:3000/ws?token=<token>`
+- 事件：`ws.ready`、`message.created`、`message.sent`、`message.read`
 
 认证方式：
 
