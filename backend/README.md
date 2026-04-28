@@ -100,3 +100,17 @@ npm run start
 ```bash
 npm test
 ```
+
+单元测试（含 Mock）与接口测试都位于 `backend/tests/`。
+
+生成覆盖率报告（核心模块：`authStore` + `responseUtils`，终端 + lcov + cobertura）：
+
+```bash
+npm run test:coverage
+```
+
+CI 上传 Codecov 前可生成根目录 `coverage.xml`：
+
+```bash
+npm run test:coverage:ci
+```

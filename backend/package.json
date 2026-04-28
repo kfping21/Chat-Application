@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node app/index.js",
     "dev": "node app/index.js",
-    "test": "node --test tests"
+    "test": "node --test --test-concurrency=1 tests",
+    "test:coverage": "c8 --reporter=text --reporter=lcov --reporter=cobertura --all --include=app/routes/store/authStore.js --include=app/routes/utils/responseUtils.js node --test tests/unit.authStore.test.js tests/unit.responseUtils.test.js",
+    "test:coverage:ci": "npm run test:coverage && node -e \"require('fs').copyFileSync('coverage/cobertura-coverage.xml','coverage.xml')\""
   },
   "dependencies": {
     "dotenv": "^16.4.7",
@@ -20,4 +22,8 @@
   ],
   "author": "",
   "license": "MIT"
+  ,
+  "devDependencies": {
+    "c8": "^10.1.2"
+  }
 }
