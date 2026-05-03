@@ -63,17 +63,17 @@ jobs:
         working-directory: ./frontend/前端代码
         run: ./gradlew testDebugUnitTest --no-daemon
 
-      - name: Generate coverage report
-        working-directory: ./frontend/前端代码
-        run: ./gradlew jacocoTestReport --no-daemon
+      # - name: Generate coverage report
+      #   working-directory: ./frontend/前端代码
+      #   run: ./gradlew jacocoTestReport --no-daemon
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: frontend/前端代码/app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
-          flags: frontend
-          fail_ci_if_error: false
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v4
+      #   with:
+      #     token: ${{ secrets.CODECOV_TOKEN }}
+      #     files: frontend/前端代码/app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+      #     flags: frontend
+      #     fail_ci_if_error: false
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
