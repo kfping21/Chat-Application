@@ -17,6 +17,8 @@
 - [x] Android 项目结构适配 CI 流程
 - [x] 添加 Java 17 和 Gradle 缓存配置
 - [x] 调整 frontend job 的工作目录为 `./frontend/前端代码/`
+- [x] 配置 JaCoCo 覆盖率报告生成
+- [x] 集成 Codecov 覆盖率上传
 
 ## PR 链接
 
@@ -36,6 +38,12 @@
 
 3. **问题**：CI 配置中的工作目录错误，指向了不存在的 `./app` 目录
    - **解决**：修正工作目录为 `./frontend/前端代码/`，匹配实际项目结构
+
+4. **问题**：gradlew 脚本没有执行权限，退出码 126
+   - **解决**：在执行 Gradle 命令前添加 `chmod +x gradlew`
+
+5. **问题**：Codecov 徽章显示 "unknown"，覆盖率报告未上传
+   - **解决**：在 Android 项目中配置 JaCoCo 覆盖率工具，并在 CI 中添加 Codecov 上传步骤
 
 ## 心得体会
 
