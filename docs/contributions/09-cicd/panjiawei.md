@@ -22,11 +22,11 @@
 
 ## PR 链接
 
-- PR: https://github.com/kfping21/Chat-Application/pull/X
+- PR: https://github.com/kfping21/Chat-Application/pull/X（待创建）
 
 ## CI 运行链接
 
-- https://github.com/kfping21/Chat-Application/actions/runs/XXX
+- CI #7: https://github.com/kfping21/Chat-Application/actions/runs/2528334457（示例，替换为实际链接）
 
 ## 遇到的问题和解决
 
