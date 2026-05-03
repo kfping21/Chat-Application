@@ -44,6 +44,10 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Make gradlew executable
+        working-directory: ./frontend/前端代码
+        run: chmod +x gradlew
+
       - name: Build Android project
         working-directory: ./frontend/前端代码
         run: ./gradlew assembleDebug --no-daemon
