@@ -71,6 +71,4 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: frontend/前端代码/app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
           flags: frontend
-          fail_ci_if_error: false
