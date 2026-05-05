@@ -9,6 +9,25 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: treehole
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: treehole
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - uses: actions/checkout@v4
 
@@ -20,6 +39,10 @@ jobs:
 
       - name: Install backend dependencies
         run: npm ci --prefix backend
+
+      - name: Initialize backend test database
+        working-directory: backend
+        run: node -e "const fs=require('fs');const mysql=require('mysql2/promise');(async()=>{const sql=fs.readFileSync('sql/init.sql','utf8');const conn=await mysql.createConnection({host:process.env.DB_HOST,port:Number(process.env.DB_PORT),user:process.env.DB_USER,password:process.env.DB_PASSWORD,multipleStatements:true});await conn.query(sql);await conn.end();})();"
 
       - name: Lint backend
         run: |
