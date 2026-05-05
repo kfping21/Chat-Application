@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { server, realtime } = require("../app/index");
+const { closePool } = require("../app/db");
 
 let baseUrl = "";
 let token = "";
@@ -19,6 +20,7 @@ test.after(async () => {
   await new Promise((resolve, reject) => {
     server.close((err) => (err ? reject(err) : resolve()));
   });
+  await closePool();
 });
 
 async function request(path, options = {}) {
