@@ -44,6 +44,24 @@ async function listPosts({ page, size, emotionCode }) {
   };
 }
 
+async function listSimplePosts({ limit = 20, offset = 0 }) {
+  const rows = await query(
+    `SELECT p.id, p.content, e.display_name AS mood, p.likes_count
+     FROM posts p
+     JOIN emotions e ON e.id = p.emotion_id
+     WHERE p.is_public = 1
+     ORDER BY p.created_at DESC
+     LIMIT ? OFFSET ?`,
+    [limit, offset]
+  );
+  return rows.map((row) => ({
+    id: String(row.id),
+    content: row.content,
+    mood: row.mood,
+    likes: Number(row.likes_count)
+  }));
+}
+
 async function listPostsByTopic({ topicId, page, size }) {
   const offset = (page - 1) * size;
   const countRow = await queryOne(
@@ -177,6 +195,7 @@ async function deletePost(userId, postId) {
 
 module.exports = {
   listPosts,
+  listSimplePosts,
   listPostsByTopic,
   createPost,
   getPostById,

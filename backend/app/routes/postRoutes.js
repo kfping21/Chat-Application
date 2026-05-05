@@ -1,6 +1,7 @@
 const { requireAuth } = require("./authRoutes");
 const {
   listPosts,
+  listSimplePosts,
   listPostsByTopic,
   createPost,
   getPostDetail,
@@ -114,6 +115,22 @@ async function handlePostRoutes(req, res, url, deps) {
   return false;
 }
 
+async function handleLegacyPostRoutes(req, res, url, deps) {
+  const { json } = deps;
+  if (req.method === "GET" && url.pathname === "/posts") {
+    const pageRaw = Number(url.searchParams.get("_page") || url.searchParams.get("page"));
+    const limitRaw = Number(url.searchParams.get("_limit") || url.searchParams.get("limit"));
+    const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(100, Math.floor(limitRaw)) : 20;
+    const offset = (page - 1) * limit;
+    const items = await listSimplePosts({ limit, offset });
+    json(res, 200, items);
+    return true;
+  }
+  return false;
+}
+
 module.exports = {
-  handlePostRoutes
+  handlePostRoutes,
+  handleLegacyPostRoutes
 };

@@ -1,91 +1,39 @@
-# 后端测试贡献说明
+# 软件测试贡献说明
 
-姓名：平恺飞  
-学号：2312190616  
-日期：2026-04-28
+姓名：平恺飞  学号：2312190616  角色：后端  日期：2026-04-28
 
-## 任务范围
+## 完成的测试工作
 
-- 后端单元测试（业务逻辑 + Mock）
-- 后端 API 接口测试（正常路径 + 参数校验 + 异常路径）
-- 覆盖率脚本与 Codecov 上传文件准备
-
-## 本次完成内容
-
-### 1) 单元测试（含 Mock）
-
-新增文件：`backend/tests/unit.authStore.test.js`
-
-覆盖核心逻辑：
-- createUser：已存在用户分支
-- createUser：主插入路径
-- createUser：缺字段兜底插入路径
-- getUserByUsername：用户映射
-- createSession：缺表兜底写 notifications
-- getSession：主查询路径
-- getSession：缺表兜底查询 notifications
-- deleteSession：缺表兜底更新 notifications
-
-Mock 方式：
-- 通过替换 `commonStore` 模块导出的 `query/queryOne`，隔离真实数据库连接。
-
-新增文件：`backend/tests/unit.responseUtils.test.js`
-
-覆盖工具函数：
-- sendApiJson 统一响应封装
-- createApiError 错误对象结构
-- parseApiBody 成功与异常分支
-
-### 2) API 接口测试
-
-已存在并复用：
+### 测试文件
+- `backend/tests/unit.authStore.test.js`
+- `backend/tests/unit.responseUtils.test.js`
 - `backend/tests/api.test.js`
 - `backend/tests/api.extra.test.js`
 
-覆盖场景包括：
-- 注册/登录/登出
-- 帖子创建/列表/详情/更新/删除
-- 评论与点赞
-- 通知与消息
-- 异常路径（无 token、无效 token、参数非法、越权修改/删除）
+### 测试清单
+- [x] 正常情况测试（若干）
+- [x] 边界 / 异常情况测试（若干）
+- [x] Mock 使用（数据库 / `commonStore` / API 依赖）
 
-### 3) 覆盖率体系
+### 覆盖率
+- 核心模块覆盖率：请见 `backend/coverage` 报告（authStore / responseUtils），CI 已产出 `cobertura-coverage.xml` 供 Codecov 使用
 
-更新：`backend/package.json`
+### AI 辅助（如有）
+- 使用工具：GitHub Copilot
+- Prompt 示例：
+	- “请按 Node.js node:test 风格，为 authStore 写不少于 8 个单元测试，并通过 Mock 隔离 commonStore 的 query/queryOne，覆盖缺表/缺字段兜底逻辑。”
+	- “请为 responseUtils 写工具函数单测，覆盖统一响应格式和异常转换逻辑。”
+- AI 生成 + 人工修改的测试数量：若干（具体数量请由提交者补充）
 
-- `npm run test:coverage`：生成核心模块（authStore/responseUtils）覆盖率 + lcov + cobertura
-- `npm run test:coverage:ci`：在上一步基础上额外复制 `coverage/cobertura-coverage.xml` 到 `backend/coverage.xml`
+## PR 链接
+- PR #X: https://github.com/xxx/xxx/pull/X （如有请填写）
 
-新增：`.github/workflows/backend-test.yml`
+## 遇到的问题和解决
+1. 问题：Mock 注入与模块缓存冲突导致测试间相互影响 → 解决：采用在测试用例中临时替换 `commonStore` 的导出并在 afterEach 恢复，避免污染全局模块缓存
 
-- 后端 CI 自动执行 `npm test` 与 `npm run test:coverage:ci`
-- 自动上传 `backend/coverage.xml` 到 Codecov（`flags: backend`）
+## 心得体会
+- 使用 Mock 能有效分离数据库依赖，加快单元测试速度；AI 工具（Copilot）能生成初版测试用例，但需人工审校断言与异常分支，保障覆盖质量。
 
-更新：`README.md`
+---
 
-- 新增后端 Codecov 徽章（flag=backend）
-
-## AI 辅助测试记录（加分项）
-
-使用工具：GitHub Copilot（GPT-5.3-Codex）
-
-使用 Prompt（核心）：
-
-1. “请按 Node.js node:test 风格，为 authStore 写不少于 8 个单元测试，并通过 Mock 隔离 commonStore 的 query/queryOne，覆盖缺表/缺字段兜底逻辑。”
-2. “请为 responseUtils 写工具函数单测，覆盖统一响应格式和异常转换逻辑。”
-3. “请补充 package.json 覆盖率脚本，产出 cobertura 文件，便于 Codecov 上传。”
-
-人工修改与校验：
-
-- 调整了 Mock 注入方式，避免影响其他测试文件的模块缓存。
-- 补充断言：SQL 分支路径命中与参数值校验。
-- 增加 `test:coverage:ci` 脚本，确保 CI 可直接读取 `backend/coverage.xml`。
-
-## 运行命令
-
-```bash
-cd backend
-npm install
-npm test
-npm run test:coverage
-```
+（注：如需我将 `核心模块覆盖率` 和 `AI 生成的测试数量` 填入具体数值，请告知我可从 CI 报告或测试运行输出中提取并替换占位符。）

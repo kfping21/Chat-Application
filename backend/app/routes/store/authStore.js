@@ -1,4 +1,5 @@
 const { query, queryOne } = require("./commonStore");
+const crypto = require("crypto");
 
 function isMissingColumnError(err) {
   return err && (err.code === "ER_BAD_FIELD_ERROR" || err.code === "ER_NO_DEFAULT_FOR_FIELD");
@@ -55,7 +56,7 @@ async function getUserByUsername(username) {
 }
 
 async function createSession(userId) {
-  const token = `tk_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+  const token = `tk_${crypto.randomBytes(24).toString("base64url")}`;
   try {
     await query("INSERT INTO user_sessions (user_id, token, is_active) VALUES (?, ?, 1)", [userId, token]);
   } catch (err) {

@@ -5,6 +5,7 @@ const http = require("http");
 const { URL } = require("url");
 const { query, queryOne, healthCheck, closePool } = require("./db");
 const { handleApiRoutes } = require("./routes/apiRoutes");
+const { handleLegacyPostRoutes } = require("./routes/postRoutes");
 const { handleV1Routes } = require("./routes/v1");
 const { createRealtime } = require("./realtime");
 
@@ -68,6 +69,10 @@ async function route(req, res) {
       service: "treehole-backend",
       timestamp: new Date().toISOString()
     });
+  }
+
+  if (await handleLegacyPostRoutes(req, res, url, { json })) {
+    return;
   }
 
   if (await handleApiRoutes(req, res, url, { parseJsonBody, json, realtime })) {

@@ -61,6 +61,10 @@ npm run start
 - `POST /api/messages`
 - `POST /api/messages/:id/read`
 
+兼容前端早期联调（简化结构）：
+
+- `GET /posts?_page=1&_limit=20`（返回 `[{ id, content, mood, likes }]`）
+
 实时私信（WebSocket）：
 
 - `ws://localhost:3000/ws?token=<token>`
