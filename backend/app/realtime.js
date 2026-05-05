@@ -47,6 +47,7 @@ async function parseUserIdFromRequest(req) {
 
 function createRealtime(server) {
   const wss = new WebSocketServer({ server, path: "/ws" });
+  let closed = false;
 
   wss.on("connection", async (ws, req) => {
     try {
@@ -100,6 +101,8 @@ function createRealtime(server) {
   }, HEARTBEAT_INTERVAL_MS);
 
   function close() {
+    if (closed) return;
+    closed = true;
     clearInterval(heartbeat);
     for (const client of wss.clients) client.close(1001, "server_shutdown");
     wss.close();

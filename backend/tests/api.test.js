@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { server } = require("../app/index");
+const { server, realtime } = require("../app/index");
 
 let baseUrl = "";
 let token = "";
@@ -15,6 +15,7 @@ test.before(async () => {
 });
 
 test.after(async () => {
+  realtime.close();
   await new Promise((resolve, reject) => {
     server.close((err) => (err ? reject(err) : resolve()));
   });
