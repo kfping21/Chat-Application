@@ -1,0 +1,103 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Run npm audit on backend
+        run: |
+          cd backend
+          npm install
+          npm audit --audit-level=high
+
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Scan for secrets
+        run: |
+          echo "=== Scanning for hardcoded secrets ==="
+          # Search for potential secrets in code
+          grep -r "password\|secret\|api_key\|apikey\|token\|Private_Key" \
+            --include="*.js" --include="*.kt" --include="*.java" \
+            --include="*.json" --include="*.xml" --include="*.gradle" \
+            --exclude-dir=node_modules --exclude-dir=.gradle . || true
+          echo "=== Scan complete ==="
+
+  dependency-check:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Check for outdated dependencies
+        run: |
+          cd backend
+          npm install
+          echo "=== Checking for outdated packages ==="
+          npm outdated || true
+
+  android-security:
+    name: Android Security Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check Gradle files for security issues
+        run: |
+          echo "=== Checking Gradle configuration ==="
+          # Check for debuggable true in release builds
+          grep -r "debuggable.*true" app/src --include="*.xml" || true
+          echo "=== Check complete ==="
+
+      - name: Ensure ProGuard/R8 is enabled
+        run: |
+          echo "=== ProGuard configuration check ==="
+          if [ -f "app/build.gradle.kts" ]; then
+            grep -i "minifyEnabled\|isMinifyEnabled" app/build.gradle.kts || echo "Minification not explicitly enabled"
+          fi
+
+  code-quality:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for commented out credentials
+        run: |
+          echo "=== Checking for disabled security (TODO comments) ==="
+          grep -r "TODO.*password\|TODO.*secret\|FIXME.*auth\|XXX.*token" \
+            --include="*.js" --include="*.kt" \
+            --exclude-dir=node_modules . || true
+          echo "=== Check complete ==="
