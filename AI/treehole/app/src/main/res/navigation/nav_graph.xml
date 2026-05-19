@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/nav_feed">
+
+    <fragment
+        android:id="@+id/nav_feed"
+        android:name="com.zjgsu.treehole.ui.FeedFragment"
+        android:label="@string/title_feed"
+        tools:layout="@layout/fragment_feed">
+        <action
+            android:id="@+id/action_feed_to_detail"
+            app:destination="@id/secretDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_explore"
+        android:name="com.zjgsu.treehole.ui.ExploreFragment"
+        android:label="@string/title_explore"
+        tools:layout="@layout/fragment_explore">
+        <action
+            android:id="@+id/action_explore_to_chat"
+            app:destination="@id/whisperChatFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_post"
+        android:name="com.zjgsu.treehole.ui.PostSecretFragment"
+        android:label="@string/title_post_secret"
+        tools:layout="@layout/fragment_post_secret" />
+
+    <fragment
+        android:id="@+id/nav_echoes"
+        android:name="com.zjgsu.treehole.ui.EchoesFragment"
+        android:label="@string/title_echoes"
+        tools:layout="@layout/fragment_echoes">
+        <action
+            android:id="@+id/action_echoes_to_chat"
+            app:destination="@id/whisperChatFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_my_hollow"
+        android:name="com.zjgsu.treehole.ui.MyHollowFragment"
+        android:label="@string/title_my_hollow"
+        tools:layout="@layout/fragment_my_hollow">
+        <action
+            android:id="@+id/action_my_to_detail"
+            app:destination="@id/secretDetailFragment" />
+        <action
+            android:id="@+id/action_my_to_login"
+            app:destination="@id/loginFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.zjgsu.treehole.ui.LoginFragment"
+        android:label="登录"
+        tools:layout="@layout/fragment_login">
+        <action
+            android:id="@+id/action_login_to_feed"
+            app:destination="@id/nav_feed"
+            app:popUpTo="@id/nav_my_hollow"
+            app:popUpToInclusive="false" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/secretDetailFragment"
+        android:name="com.zjgsu.treehole.ui.SecretDetailFragment"
+        android:label="@string/label_echoes"
+        tools:layout="@layout/fragment_secret_detail">
+        <argument
+            android:name="secretId"
+            app:argType="string"
+            android:defaultValue="1" />
+        <action
+            android:id="@+id/action_detail_to_chat"
+            app:destination="@id/whisperChatFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/whisperChatFragment"
+        android:name="com.zjgsu.treehole.ui.WhisperChatFragment"
+        android:label="@string/title_whisper_chat"
+        tools:layout="@layout/fragment_whisper_chat">
+        <argument
+            android:name="chatId"
+            app:argType="string"
+            android:defaultValue="1" />
+    </fragment>
+
+</navigation>

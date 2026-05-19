@@ -49,8 +49,10 @@ erDiagram
 ### 3.1 `users`（用户表）
 
 - 主键：`id`
+- 唯一键：`anonymous_name`
 - 核心字段：
   - `anonymous_name`：匿名昵称
+  - `auth_password`：认证密码（仅用于登录）
   - `avatar_color`：头像主题色
   - `joined_at`：加入时间
   - `status`：用户状态
@@ -162,6 +164,19 @@ erDiagram
   - `idx_private_messages_pair_time (sender_user_id, receiver_user_id, created_at)`
   - `idx_private_messages_receiver_read (receiver_user_id, is_read, created_at)`
 
+### 3.12 `user_sessions`（用户会话表）
+
+- 主键：`id`
+- 唯一键：`token`
+- 外键：`user_id -> users.id ON DELETE CASCADE`
+- 核心字段：
+  - `token`：Bearer Token
+  - `is_active`：会话是否有效
+  - `created_at`：创建时间
+- 索引：
+  - `idx_user_sessions_user_active_created (user_id, is_active, created_at)`
+- 说明：用于认证会话，不与业务通知混用。
+
 ---
 
 ## 4. 关系与基数说明
@@ -176,6 +191,7 @@ erDiagram
 - 用户与通知：`1:N`
 - 用户与私信：发送 `1:N`，接收 `1:N`
 - 用户与相遇记录：`1:N`（面向目标用户）
+- 用户与会话：`1:N`
 
 ---
 

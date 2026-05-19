@@ -1,0 +1,503 @@
+openapi: 3.0.0
+info:
+  title: Treehole Chat API
+  version: 1.0.0
+  description: |
+    面向树洞聊天业务的作业接口（认证 + 帖子 CRUD + 分页筛选）。
+    使用前请先配置 backend/.env 中 DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME，
+    并确保数据库已执行 backend/sql/init.sql。
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/auth/register:
+    post:
+      summary: 注册用户（映射到 users）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+                displayName: { type: string }
+      responses:
+        '201':
+          description: 注册成功
+        '400':
+          description: 参数错误
+  /api/auth/login:
+    post:
+      summary: 登录（使用注册后的用户名和密码）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: 登录成功
+        '401':
+          description: 认证失败
+  /api/auth/logout:
+    post:
+      summary: 登出
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: 成功 }
+        '401': { description: 未授权 }
+  /api/posts:
+    get:
+      summary: 获取公开帖子列表（分页 + 筛选）
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 10, minimum: 1, maximum: 50 }
+        - in: query
+          name: emotionCode
+          schema: { type: string }
+      responses:
+        '200': { description: 成功 }
+  /api/topics/{topicId}/posts:
+    get:
+      summary: 按话题获取公开帖子
+      parameters:
+        - in: path
+          name: topicId
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 10, minimum: 1, maximum: 50 }
+      responses:
+        '200': { description: 成功 }
+    post:
+      summary: 创建帖子
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content, emotionCode]
+              properties:
+                content: { type: string, maxLength: 500 }
+                emotionCode: { type: string }
+                topicIds:
+                  type: array
+                  items: { type: integer, minimum: 1 }
+                allowComments: { type: boolean }
+                isPublic: { type: boolean }
+      responses:
+        '201': { description: 创建成功 }
+        '400': { description: 参数错误 }
+        '401': { description: 未授权 }
+  /api/posts/{id}:
+    get:
+      summary: 获取单个帖子
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: 成功 }
+        '404': { description: 不存在 }
+    put:
+      summary: 更新帖子（仅作者）
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content: { type: string, maxLength: 500 }
+                emotionCode: { type: string }
+                topicIds:
+                  type: array
+                  items: { type: integer, minimum: 1 }
+                allowComments: { type: boolean }
+                isPublic: { type: boolean }
+      responses:
+        '200': { description: 更新成功 }
+        '400': { description: 参数错误 }
+        '401': { description: 未授权 }
+        '404': { description: 不存在或无权限 }
+    delete:
+      summary: 删除帖子（仅作者）
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: 删除成功 }
+        '401': { description: 未授权 }
+        '404': { description: 不存在或无权限 }
+  /api/posts/{id}/comments:
+    get:
+      summary: 获取评论列表
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+      responses:
+        '200': { description: 成功 }
+        '404': { description: 帖子不存在 }
+    post:
+      summary: 发表评论
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string, maxLength: 300 }
+                parentCommentId: { type: integer, minimum: 1, nullable: true }
+      responses:
+        '201': { description: 创建成功 }
+        '400': { description: 参数错误 }
+        '401': { description: 未授权 }
+        '404': { description: 帖子不存在 }
+  /api/posts/{id}/like:
+    post:
+      summary: 帖子点赞
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: 成功 }
+        '401': { description: 未授权 }
+        '404': { description: 帖子不存在 }
+    delete:
+      summary: 取消帖子点赞
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: 成功 }
+  /api/comments/{id}/like:
+    post:
+      summary: 评论点赞
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: 成功 }
+    delete:
+      summary: 取消评论点赞
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: 成功 }
+  /api/comments/{id}:
+    put:
+      summary: 更新评论（仅作者）
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string, maxLength: 300 }
+      responses:
+        '200': { description: 更新成功 }
+        '400': { description: 参数错误 }
+        '401': { description: 未授权 }
+        '404': { description: 评论不存在或无权限 }
+    delete:
+      summary: 删除评论（仅作者）
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: 删除成功 }
+        '401': { description: 未授权 }
+        '404': { description: 评论不存在或无权限 }
+  /api/comments/{id}/replies:
+    get:
+      summary: 获取评论回复列表（分页）
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+      responses:
+        '200': { description: 成功 }
+        '404': { description: 评论不存在 }
+  /api/meta/emotions:
+    get:
+      summary: 获取情绪字典
+      responses:
+        '200': { description: 成功 }
+  /api/discover/topics/hot:
+    get:
+      summary: 获取热门话题
+      responses:
+        '200': { description: 成功 }
+  /api/topics:
+    get:
+      summary: 获取话题列表（分页）
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+        - in: query
+          name: hotOnly
+          schema: { type: boolean, default: false }
+      responses:
+        '200': { description: 成功 }
+  /api/me/summary:
+    get:
+      summary: 获取我的摘要
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: 成功 }
+  /api/encounters/recent:
+    get:
+      summary: 获取最近相遇用户
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+      responses:
+        '200': { description: 成功 }
+  /api/notifications:
+    get:
+      summary: 获取通知列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+      responses:
+        '200': { description: 成功 }
+    delete:
+      summary: 清理通知（可选仅清理已读）
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: readOnly
+          schema: { type: boolean, default: false }
+      responses:
+        '200': { description: 成功 }
+  /api/notifications/read-all:
+    post:
+      summary: 全部通知标记已读
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: 成功 }
+  /api/notifications/{id}/read:
+    post:
+      summary: 单条通知标记已读
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: 成功 }
+        '404': { description: 通知不存在 }
+  /api/notifications/{id}:
+    delete:
+      summary: 删除单条通知
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: 成功 }
+        '404': { description: 通知不存在 }
+  /api/messages/inbox:
+    get:
+      summary: 获取私信收件箱
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+      responses:
+        '200': { description: 成功 }
+  /api/messages/sent:
+    get:
+      summary: 获取私信发件箱
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+      responses:
+        '200': { description: 成功 }
+  /api/messages/conversation:
+    get:
+      summary: 获取与指定用户的会话消息（双向）
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: peerUserId
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+      responses:
+        '200': { description: 成功 }
+        '400': { description: 参数错误 }
+        '404': { description: 用户不存在 }
+  /api/messages/conversations:
+    get:
+      summary: 获取私信会话列表（按最近消息）
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+      responses:
+        '200': { description: 成功 }
+        '404': { description: 用户不存在 }
+  /api/messages:
+    post:
+      summary: 发送私信
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [receiverUserId, content]
+              properties:
+                receiverUserId: { type: integer, minimum: 1 }
+                content: { type: string, maxLength: 500 }
+      responses:
+        '201': { description: 创建成功 }
+  /api/messages/{id}/read:
+    post:
+      summary: 私信标记已读
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: 成功 }
+        '404': { description: 消息不存在 }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer

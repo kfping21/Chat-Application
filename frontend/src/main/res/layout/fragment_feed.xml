@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_deep"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Unified Page Header with decorative line -->
+        <LinearLayout
+            android:id="@+id/header_feed"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@color/bg_header"
+            android:paddingStart="@dimen/page_header_padding_horizontal"
+            android:paddingEnd="@dimen/page_header_padding_horizontal"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:elevation="8dp"
+            android:gravity="center_horizontal">
+
+            <!-- Title: 树洞 -->
+            <TextView
+                android:id="@+id/tv_feed_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/title_feed"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/gold_primary"
+                android:letterSpacing="0.05"
+                android:fontFamily="sans-serif-medium" />
+
+            <!-- Subtitle: 听见心声 -->
+            <TextView
+                android:id="@+id/tv_feed_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/subtitle_feed"
+                android:textSize="11sp"
+                android:textColor="@color/text_muted"
+                android:letterSpacing="0.1" />
+        </LinearLayout>
+
+        <!-- Feed RecyclerView -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_feed"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="80dp"
+            android:scrollbars="none" />
+    </LinearLayout>
+
+    <!-- Loading Progress -->
+    <ProgressBar
+        android:id="@+id/progress_bar"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="center"
+        android:visibility="gone"
+        android:indeterminateTint="@color/gold_primary" />
+
+    <!-- Empty State -->
+    <TextView
+        android:id="@+id/tv_empty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="暂无帖子"
+        android:textColor="@color/text_muted"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+</FrameLayout>
