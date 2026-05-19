@@ -1,0 +1,83 @@
+<resources>
+    <string name="app_name">树洞</string>
+
+    <!-- Page titles -->
+    <string name="title_feed">树洞</string>
+    <string name="subtitle_feed">听见心声</string>
+    <string name="title_explore">遇见</string>
+    <string name="title_echoes">回响</string>
+    <string name="title_my_hollow">我的空间</string>
+    <string name="subtitle_my_hollow">你的心灵庇护所</string>
+    <string name="title_post_secret">埋下秘密</string>
+    <string name="title_whisper_chat">悄悄话</string>
+
+    <!-- Bottom Nav -->
+    <string name="nav_feed">首页</string>
+    <string name="nav_explore">遇见</string>
+    <string name="nav_post">发布</string>
+    <string name="nav_echoes">回响</string>
+    <string name="nav_my">我的</string>
+
+    <!-- Feed -->
+    <string name="hint_search">搜索话题标签...</string>
+    <string name="label_hot_topics">热门话题</string>
+    <string name="hint_explore_orbs">点击光点，与陌生的灵魂开始对话</string>
+    <string name="hint_explore_sub">每个光点都是一个正在倾诉的故事</string>
+    <string name="no_results">未找到相关话题</string>
+    <string name="clear_search">清空搜索</string>
+
+    <!-- Echoes -->
+    <string name="tab_comments">评论</string>
+    <string name="tab_messages">私聊</string>
+
+    <!-- My Hollow -->
+    <string name="anonymous_soul">匿名的灵魂</string>
+    <string name="login_prompt">登录后探索更多功能</string>
+    <string name="btn_login">登录</string>
+    <string name="btn_register">注册</string>
+    <string name="login_welcome">欢迎回来</string>
+    <string name="register_title">创建账号</string>
+    <string name="login_subtitle">倾听心灵的声音</string>
+    <string name="member_since">成员自 2026年3月</string>
+    <string name="stat_secrets">我埋下的秘密</string>
+    <string name="stat_echoes">我收集的回响</string>
+    <string name="stat_souls">遇见的灵魂</string>
+    <string name="my_secrets">我的秘密</string>
+    <string name="menu_privacy">隐私保护</string>
+    <string name="menu_theme">主题选择</string>
+    <string name="menu_settings">设置</string>
+    <string name="menu_logout">退出登录</string>
+
+    <!-- PostSecret -->
+    <string name="hint_post_content">此刻你想说点什么...</string>
+    <string name="label_choose_mood">选择心情</string>
+    <string name="label_allow_comments">允许评论</string>
+    <string name="btn_post">埋下秘密</string>
+    <string name="posting">埋入中...</string>
+    <string name="post_anonymous_tip">你的秘密完全匿名且安全</string>
+
+    <!-- SecretDetail -->
+    <string name="label_echoes">回响</string>
+    <string name="hint_comment">对他说点什么...</string>
+
+    <!-- WhisperChat -->
+    <string name="anonymous_online">匿名 • 在线</string>
+    <string name="self_destruct">自毁消息</string>
+    <string name="hint_message">说点什么...</string>
+    <string name="e2e_encrypted">消息端到端加密</string>
+    <string name="btn_record">语音</string>
+    <string name="ai_reply_title">灵感回复</string>
+    <string name="ai_toggle">灵感推荐</string>
+    <string name="ai_refresh">换一批</string>
+    <string name="ai_close">收起</string>
+
+    <!-- Mood names -->
+    <string name="mood_lonely">孤独</string>
+    <string name="mood_happy">开心</string>
+    <string name="mood_regret">后悔</string>
+    <string name="mood_anxious">焦虑</string>
+    <string name="mood_calm">平静</string>
+    <string name="mood_lost">迷茫</string>
+    <string name="mood_touched">感动</string>
+    <string name="mood_release">释然</string>
+</resources>

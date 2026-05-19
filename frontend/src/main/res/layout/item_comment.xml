@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
+
+    <!-- Avatar + username + time -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="6dp">
+
+        <ImageView
+            android:id="@+id/iv_comment_avatar"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_avatar_circle"
+            android:clipToOutline="true" />
+
+        <TextView
+            android:id="@+id/tv_comment_username"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="匿名用户"
+            android:textSize="12sp"
+            android:textColor="@color/text_primary"
+            android:textStyle="bold"
+            android:layout_marginEnd="4dp" />
+
+        <TextView
+            android:id="@+id/tv_comment_author"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="作者"
+            android:textSize="10sp"
+            android:textColor="@color/gold_primary"
+            android:background="@drawable/bg_ai_notice_chip"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="1dp"
+            android:paddingBottom="1dp"
+            android:visibility="gone"
+            android:layout_marginEnd="4dp" />
+
+        <TextView
+            android:id="@+id/tv_comment_time"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="1小时前"
+            android:textSize="11sp"
+            android:textColor="@color/text_hint" />
+
+        <!-- Like button -->
+        <LinearLayout
+            android:id="@+id/btn_comment_like"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="2dp">
+
+            <ImageView
+                android:id="@+id/iv_comment_like_icon"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:src="@drawable/ic_action_heart_outline"
+                app:tint="@color/text_hint" />
+
+            <TextView
+                android:id="@+id/tv_comment_likes"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="3dp"
+                android:text="23"
+                android:textSize="11sp"
+                android:textColor="@color/text_hint" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Comment text -->
+    <TextView
+        android:id="@+id/tv_comment_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textColor="@color/text_secondary"
+        android:lineSpacingMultiplier="1.4"
+        android:layout_marginStart="40dp" />
+
+</LinearLayout>

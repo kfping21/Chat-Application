@@ -1,6 +1,6 @@
 # API 设计与实现贡献说明
 姓名：pingkaifei
-学号：待补充
+学号：2312190616
 日期：2026-03-26
 
 ## 我完成的工作
@@ -30,7 +30,7 @@
 - [x] 测试用例数量：7 个（auth + post）
 
 ## PR 链接
-- PR #X: 待补充
+- PR #X: https://github.com/kfping21/Chat-Application/pull/6
 
 ## 遇到的问题和解决
 1. 问题：本地启动后出现数据库连接失败（`Access denied ... using password: NO`）。  
