@@ -55,6 +55,62 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Get online users (for whisper chat online status) - no auth needed
+app.get('/api/online-users', (req, res) => {
+    res.json({ onlineUsers: Array.from(onlineUsers.keys()) });
+});
+
+// Secret admin route to clear all data
+const Post = require('./models/Post');
+const Comment = require('./models/Comment');
+const Notification = require('./models/Notification');
+const { PartyRoom, PartyMessage } = require('./models/Party');
+
+app.post('/api/admin/clear-all', async (req, res) => {
+    try {
+        const { secret } = req.body;
+        if (secret !== 'treehole_clear_2026') {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+
+        await Promise.all([
+            User.deleteMany({}),
+            Post.deleteMany({}),
+            Comment.deleteMany({}),
+            ChatRoom.deleteMany({}),
+            ChatMessage.deleteMany({}),
+            Notification.deleteMany({}),
+            PartyRoom.deleteMany({}),
+            PartyMessage.deleteMany({})
+        ]);
+
+        // Recreate default user
+        await recreateDefaultUser();
+
+        res.json({ message: 'All data cleared and default user created', timestamp: new Date().toISOString() });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// Recreate default user after clear
+async function recreateDefaultUser() {
+    try {
+        const existing = await User.findOne({ username: 'panjiawei' });
+        if (!existing) {
+            const defaultUser = new User({
+                username: 'panjiawei',
+                password: '123456',
+                nickname: '潘嘉伟'
+            });
+            await defaultUser.save();
+            console.log('✅ Default user recreated: panjiawei / 123456');
+        }
+    } catch (e) {
+        console.error('Failed to recreate default user:', e);
+    }
+}
+
 // Socket.IO connection handling for whisper chat
 const onlineUsers = new Map();
 
@@ -240,22 +296,18 @@ io.on('connection', (socket) => {
         if (socket.userId) {
             onlineUsers.delete(socket.userId);
             io.emit('users-online', Array.from(onlineUsers.keys()));
-
-            // Mark user as offline
-            try {
-                await User.findByIdAndUpdate(socket.userId, {
-                    isOnline: false,
-                    lastOnlineAt: new Date()
-                });
-            } catch (e) {
-                // Ignore
-            }
+            // Don't set isOnline = false here - user is still logged in, just not in whisper chat
         }
     });
 
     // Debug: log when handshake is complete
     socket.on('connect', () => {
         console.log('Socket handshake complete for:', socket.id);
+    });
+
+    // Client requests online users list
+    socket.on('request-online-users', () => {
+        socket.emit('users-online', Array.from(onlineUsers.keys()));
     });
 });
 
@@ -277,8 +329,8 @@ async function clearMessageLimits() {
 // 监听所有网络接口，这样同一局域网的手机可以访问
 server.listen(PORT, '0.0.0.0', async () => {
     await clearMessageLimits();
+    await recreateDefaultUser();
     console.log(`🚀 服务器运行在 http://0.0.0.0:${PORT}`);
     console.log(`🔌 WebSocket 悄悄话服务已启用`);
-    console.log(`📱 手机访问(当前): http://10.234.171.102:${PORT}`);
-    console.log(`📱 手机访问(备用): http://10.234.171.102:${PORT}`);
+    console.log(`📱 手机访问: http://10.199.113.114:${PORT}`);
 });

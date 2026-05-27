@@ -22,20 +22,18 @@ import com.zjgsu.treehole.network.TokenManager
 import com.zjgsu.treehole.util.AvatarLoader
 import com.zjgsu.treehole.util.TimeUtils
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Locale
-import java.util.TimeZone
+
 
 class UserProfileFragment : Fragment() {
 
     private lateinit var ivAvatar: ImageView
     private lateinit var tvNickname: TextView
-    private lateinit var tvJoined: TextView
+    private lateinit var tvStatFollowing: TextView
+    private lateinit var tvStatFollowers: TextView
     private lateinit var tvStatSecrets: TextView
     private lateinit var tvStatEchoes: TextView
-    private lateinit var tvStatFollowers: TextView
+    private lateinit var tvStatSouls: TextView
     private lateinit var tvFollow: TextView
-    private lateinit var tvUserBio: TextView
     private lateinit var btnFollow: LinearLayout
     private lateinit var btnChat: LinearLayout
     private lateinit var btnBack: ImageButton
@@ -77,12 +75,12 @@ class UserProfileFragment : Fragment() {
         // Init views
         ivAvatar = view.findViewById(R.id.iv_user_avatar)
         tvNickname = view.findViewById(R.id.tv_user_nickname)
-        tvJoined = view.findViewById(R.id.tv_user_joined)
+        tvStatFollowing = view.findViewById(R.id.tv_stat_following)
+        tvStatFollowers = view.findViewById(R.id.tv_stat_followers)
         tvStatSecrets = view.findViewById(R.id.tv_stat_secrets)
         tvStatEchoes = view.findViewById(R.id.tv_stat_echoes)
-        tvStatFollowers = view.findViewById(R.id.tv_stat_followers)
+        tvStatSouls = view.findViewById(R.id.tv_stat_souls)
         tvFollow = view.findViewById(R.id.tv_follow)
-        tvUserBio = view.findViewById(R.id.tv_user_bio)
         btnFollow = view.findViewById(R.id.btn_follow)
         btnChat = view.findViewById(R.id.btn_chat)
         btnBack = view.findViewById(R.id.btn_back)
@@ -122,33 +120,14 @@ class UserProfileFragment : Fragment() {
                     if (profile != null) {
                         activity?.runOnUiThread {
                             tvNickname.text = profile.nickname.ifEmpty { "匿名灵魂" }
-                            tvStatSecrets.text = profile.postsCount.toString()
-                            tvStatEchoes.text = (profile.postsCount + profile.commentsCount).toString()
+                            tvStatFollowing.text = profile.followingCount.toString()
                             tvStatFollowers.text = profile.followersCount.toString()
-
-                            // Parse and format joined date
-                            val joinedDate = try {
-                                val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-                                format.timeZone = TimeZone.getTimeZone("UTC")
-                                val date = format.parse(profile.createdAt)
-                                val displayFormat = SimpleDateFormat("yyyy年MM月", Locale.getDefault())
-                                date?.let { "来自 ${displayFormat.format(it)}" } ?: ""
-                            } catch (e: Exception) {
-                                ""
-                            }
-                            tvJoined.text = joinedDate
+                            tvStatSecrets.text = profile.postsCount.toString()
+                            tvStatEchoes.text = profile.commentsCount.toString()
+                            tvStatSouls.text = profile.chatRoomsCount.toString()
 
                             // Load avatar
                             AvatarLoader.loadAvatar(requireContext(), profile.avatar, ivAvatar)
-
-                            // Load bio
-                            val bio = profile.bio
-                            if (bio.isNotEmpty()) {
-                                tvUserBio.text = bio
-                                tvUserBio.visibility = TextView.VISIBLE
-                            } else {
-                                tvUserBio.visibility = TextView.GONE
-                            }
 
                             // Update follow button
                             isFollowing = profile.isFollowing

@@ -37,10 +37,11 @@ class MyHollowFragment : Fragment() {
     private lateinit var rv: RecyclerView
     private lateinit var ivAvatar: ImageView
     private lateinit var tvUsername: TextView
+    private lateinit var tvStatFollowing: TextView
+    private lateinit var tvStatFollowers: TextView
     private lateinit var tvStatSecrets: TextView
     private lateinit var tvStatEchoes: TextView
     private lateinit var tvStatSouls: TextView
-    private lateinit var tvMyBio: TextView
     private lateinit var avatar: String
     private lateinit var nickname: String
 
@@ -58,10 +59,11 @@ class MyHollowFragment : Fragment() {
         rv = view.findViewById(R.id.rv_my_secrets)
         ivAvatar = view.findViewById(R.id.iv_my_avatar)
         tvUsername = view.findViewById(R.id.tv_my_username)
+        tvStatFollowing = view.findViewById(R.id.tv_stat_following)
+        tvStatFollowers = view.findViewById(R.id.tv_stat_followers)
         tvStatSecrets = view.findViewById(R.id.tv_stat_secrets)
         tvStatEchoes = view.findViewById(R.id.tv_stat_echoes)
         tvStatSouls = view.findViewById(R.id.tv_stat_souls)
-        tvMyBio = view.findViewById(R.id.tv_my_bio)
 
         avatar = TokenManager.getAvatar() ?: ""
         nickname = TokenManager.getNickname() ?: ""
@@ -86,7 +88,7 @@ class MyHollowFragment : Fragment() {
         }
 
         rv.layoutManager = LinearLayoutManager(requireContext())
-        adapter = SecretAdapter(mySecrets) { postId, _ -> likePost(postId) }
+        adapter = SecretAdapter(mySecrets, { postId, _ -> likePost(postId) }, { postId -> showDeleteConfirmDialog(postId) }, canDelete = true)
         rv.adapter = adapter
 
         // Load my posts
@@ -104,11 +106,6 @@ class MyHollowFragment : Fragment() {
         // Username click to edit
         tvUsername.setOnClickListener {
             showNicknameEditDialog(tvUsername)
-        }
-
-        // Bio click to edit
-        tvMyBio.setOnClickListener {
-            showBioEditDialog(tvMyBio)
         }
 
         // Add animations to settings buttons
@@ -139,6 +136,28 @@ class MyHollowFragment : Fragment() {
         view.findViewById<View>(R.id.btn_settings).setOnClickListener {
             showSettingsDialog()
         }
+
+        // Click listeners for following/followers stats
+        tvStatFollowing.setOnClickListener {
+            val userId = TokenManager.getUserId() ?: return@setOnClickListener
+            navigateToFollowList(userId, "following", "我的关注")
+        }
+
+        tvStatFollowers.setOnClickListener {
+            val userId = TokenManager.getUserId() ?: return@setOnClickListener
+            navigateToFollowList(userId, "followers", "我的粉丝")
+        }
+    }
+
+    private fun navigateToFollowList(userId: String, type: String, title: String) {
+        findNavController().navigate(
+            R.id.action_my_hollow_to_follow_list,
+            Bundle().apply {
+                putString("userId", userId)
+                putString("type", type)
+                putString("title", title)
+            }
+        )
     }
 
     override fun onResume() {
@@ -150,53 +169,24 @@ class MyHollowFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val postsResponse = RetrofitClient.postsApi.getMyPosts()
-                val whispersResponse = RetrofitClient.whisperApi.getChatRooms()
 
-                var totalLikes = 0
-                var totalComments = 0
-                var postCount = 0
-
-                if (postsResponse.isSuccessful) {
-                    val posts = postsResponse.body()?.posts ?: emptyList()
-                    postCount = posts.size
-                    posts.forEach { post ->
-                        totalLikes += post.likes
-                        totalComments += post.commentCount
-                    }
-                }
-
-                val chatRoomCount = if (whispersResponse.isSuccessful) {
-                    whispersResponse.body()?.rooms?.size ?: 0
-                } else {
-                    0
-                }
-
-                // Update stats
-                activity?.runOnUiThread {
-                    applyStatsPrivacy(
-                        postCount = postCount,
-                        echoesCount = totalLikes + totalComments,
-                        soulsCount = chatRoomCount
-                    )
-                }
-
-                // Load user profile for bio
+                // Load user profile for follow stats
                 val currentUserId = TokenManager.getUserId()
                 if (currentUserId != null) {
                     try {
                         val profileResponse = RetrofitClient.authApi.getUserProfile(currentUserId)
                         if (profileResponse.isSuccessful) {
-                            val bio = profileResponse.body()?.bio ?: ""
+                            val profile = profileResponse.body()
                             activity?.runOnUiThread {
-                                if (bio.isNotEmpty()) {
-                                    tvMyBio.text = bio
-                                    tvMyBio.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.text_primary))
-                                    tvMyBio.setTypeface(null, android.graphics.Typeface.NORMAL)
-                                }
+                                tvStatFollowing.text = profile?.followingCount?.toString() ?: "0"
+                                tvStatFollowers.text = profile?.followersCount?.toString() ?: "0"
+                                tvStatSecrets.text = profile?.postsCount?.toString() ?: "0"
+                                tvStatEchoes.text = profile?.commentsCount?.toString() ?: "0"
+                                tvStatSouls.text = profile?.chatRoomsCount?.toString() ?: "0"
                             }
                         }
                     } catch (e: Exception) {
-                        // Ignore bio load error
+                        // Ignore profile load error
                     }
                 }
 
@@ -240,6 +230,38 @@ class MyHollowFragment : Fragment() {
         }
     }
 
+    private fun showDeleteConfirmDialog(postId: String) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("删除秘密")
+            .setMessage("确定要删除这条秘密吗？删除后无法恢复。")
+            .setNegativeButton("取消", null)
+            .setPositiveButton("删除") { _, _ ->
+                deletePost(postId)
+            }
+            .show()
+    }
+
+    private fun deletePost(postId: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.postsApi.deletePost(postId)
+                if (response.isSuccessful) {
+                    // Remove from local list and update adapter
+                    val index = mySecrets.indexOfFirst { it.id == postId }
+                    if (index >= 0) {
+                        mySecrets.removeAt(index)
+                        adapter?.notifyItemRemoved(index)
+                    }
+                    Toast.makeText(requireContext(), "删除成功", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(requireContext(), "删除失败", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun showPrivacyDialog() {
         val container = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
@@ -250,13 +272,8 @@ class MyHollowFragment : Fragment() {
             text = "隐身在线状态（不显示在线）"
             isChecked = TokenManager.isIncognitoModeEnabled()
         }
-        val cbHideStats = CheckBox(requireContext()).apply {
-            text = "隐藏我的统计数据"
-            isChecked = TokenManager.isHideMyStatsEnabled()
-        }
 
         container.addView(cbIncognito)
-        container.addView(cbHideStats)
 
         AlertDialog.Builder(requireContext())
             .setTitle("隐私保护")
@@ -264,28 +281,9 @@ class MyHollowFragment : Fragment() {
             .setNegativeButton("取消", null)
             .setPositiveButton("保存") { _, _ ->
                 TokenManager.setIncognitoModeEnabled(cbIncognito.isChecked)
-                TokenManager.setHideMyStatsEnabled(cbHideStats.isChecked)
-
-                if (cbHideStats.isChecked) {
-                    applyStatsPrivacy(postCount = 0, echoesCount = 0, soulsCount = 0)
-                } else {
-                    loadMyPosts()
-                }
                 Toast.makeText(requireContext(), "隐私设置已保存", Toast.LENGTH_SHORT).show()
             }
             .show()
-    }
-
-    private fun applyStatsPrivacy(postCount: Int, echoesCount: Int, soulsCount: Int) {
-        if (TokenManager.isHideMyStatsEnabled()) {
-            tvStatSecrets.text = "***"
-            tvStatEchoes.text = "***"
-            tvStatSouls.text = "***"
-        } else {
-            tvStatSecrets.text = postCount.toString()
-            tvStatEchoes.text = echoesCount.toString()
-            tvStatSouls.text = soulsCount.toString()
-        }
     }
 
     private fun showThemeDialog() {
@@ -434,60 +432,6 @@ class MyHollowFragment : Fragment() {
                         tvUsername.text = user.nickname
                         nickname = user.nickname
                         Toast.makeText(requireContext(), "昵称已更新", Toast.LENGTH_SHORT).show()
-                    }
-                } else {
-                    Toast.makeText(requireContext(), "更新失败: ${response.code()}", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(requireContext(), "更新失败: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private fun showBioEditDialog(currentTextView: TextView) {
-        val editText = EditText(requireContext()).apply {
-            hint = "输入个人介绍"
-            val currentText = currentTextView.text.toString()
-            setText(if (currentText == "点击添加介绍，让大家了解你...") "" else currentText)
-            setSelection(text.length)
-            setPadding(48, 32, 48, 32)
-            minLines = 2
-            maxLines = 4
-        }
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("编辑个人介绍")
-            .setView(editText)
-            .setPositiveButton("确定") { _, _ ->
-                val newBio = editText.text.toString().trim()
-                updateBio(newBio, currentTextView)
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-    private fun updateBio(newBio: String, tvBio: TextView) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                val bioBody = newBio.toRequestBody("text/plain".toMediaTypeOrNull())
-                val response = RetrofitClient.authApi.updateProfile(
-                    null,
-                    null,
-                    bioBody,
-                    null
-                )
-                if (response.isSuccessful) {
-                    activity?.runOnUiThread {
-                        if (newBio.isNotEmpty()) {
-                            tvBio.text = newBio
-                            tvBio.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.text_primary))
-                            tvBio.setTypeface(null, android.graphics.Typeface.NORMAL)
-                        } else {
-                            tvBio.text = "点击添加介绍，让大家了解你..."
-                            tvBio.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.text_muted))
-                            tvBio.setTypeface(null, android.graphics.Typeface.ITALIC)
-                        }
-                        Toast.makeText(requireContext(), "个人介绍已更新", Toast.LENGTH_SHORT).show()
                     }
                 } else {
                     Toast.makeText(requireContext(), "更新失败: ${response.code()}", Toast.LENGTH_SHORT).show()

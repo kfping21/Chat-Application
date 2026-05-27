@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
@@ -26,6 +27,7 @@ class NotificationsTabFragment : Fragment() {
     }
 
     private var notificationAdapter: NotificationAdapter? = null
+    private lateinit var tvEmpty: TextView
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? =
         inflater.inflate(R.layout.fragment_notifications_tab, container, false)
@@ -33,6 +35,7 @@ class NotificationsTabFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val rv = view.findViewById<RecyclerView>(R.id.rv_notifications)
+        tvEmpty = view.findViewById(R.id.tv_empty_notifications)
         rv.layoutManager = LinearLayoutManager(requireContext())
 
         loadNotifications(rv)
@@ -83,11 +86,14 @@ class NotificationsTabFragment : Fragment() {
                         }
                     }
                     rv.adapter = notificationAdapter
+                    tvEmpty.visibility = if (notifications.isEmpty()) View.VISIBLE else View.GONE
                 } else {
                     rv.adapter = NotificationAdapter(emptyList())
+                    tvEmpty.visibility = View.VISIBLE
                 }
             } catch (e: Exception) {
                 rv.adapter = NotificationAdapter(emptyList())
+                tvEmpty.visibility = View.VISIBLE
             }
         }
     }

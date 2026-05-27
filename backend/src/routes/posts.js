@@ -40,11 +40,31 @@ router.get('/feed', auth, async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
+        const type = req.query.type || 'all';
+
+        // Get current user's following list if type is 'following'
+        let followingIds = [];
+        if (type === 'following') {
+            const currentUser = await User.findById(req.userId).select('following').lean();
+            followingIds = currentUser?.following || [];
+        }
+
+        // Build query
+        const query = {};
+        if (type === 'following' && followingIds.length > 0) {
+            query.userId = { $in: followingIds };
+        } else if (type === 'following' && followingIds.length === 0) {
+            // No following, return empty feed
+            return res.json({
+                posts: [],
+                pagination: { page, limit, total: 0, totalPages: 0, hasMore: false }
+            });
+        }
 
         // Get total count for pagination info
-        const total = await Post.countDocuments();
+        const total = await Post.countDocuments(query);
 
-        const posts = await Post.find()
+        const posts = await Post.find(query)
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
@@ -79,7 +99,7 @@ router.get('/feed', auth, async (req, res) => {
                     nickname: user.nickname,
                     avatar: user.avatar
                 } : null,
-                isLiked: (post.likedBy || []).some(id => id.toString() === req.userId)
+                isLiked: post.likedBy.some(id => id.toString() === req.userId)
             };
         });
 
@@ -105,7 +125,7 @@ router.get('/my', auth, async (req, res) => {
         const posts = await Post.find({ userId: req.userId })
             .sort({ createdAt: -1 })
             .limit(10)
-            .select('_id content mood likes createdAt likedBy')
+            .select('_id content mood likes createdAt')
             .lean();
 
         // Get comment counts for all posts in batch
@@ -122,8 +142,7 @@ router.get('/my', auth, async (req, res) => {
                 mood: post.mood,
                 likes: post.likes,
                 commentCount: commentCountMap.get(post._id.toString()) || 0,
-                createdAt: post.createdAt,
-                isLiked: (post.likedBy || []).some(id => id.toString() === req.userId)
+                createdAt: post.createdAt
             }))
         });
     } catch (error) {
@@ -164,7 +183,7 @@ router.get('/user/:userId', auth, async (req, res) => {
                     nickname: user.nickname,
                     avatar: user.avatar
                 } : null,
-                isLiked: (post.likedBy || []).some(id => id.toString() === req.userId)
+                isLiked: post.likedBy.some(id => id.toString() === req.userId)
             }))
         });
     } catch (error) {
@@ -210,7 +229,7 @@ router.get('/:id', auth, async (req, res) => {
                     nickname: user.nickname,
                     avatar: user.avatar
                 } : null,
-                isLiked: (post.likedBy || []).some(id => id.toString() === req.userId)
+                isLiked: post.likedBy.some(id => id.toString() === req.userId)
             },
             comments: comments.map((c, i) => {
                 const cUser = commentUserMap.get(c.userId.toString());
@@ -338,6 +357,36 @@ router.post('/:id/comment', auth, async (req, res) => {
         });
     } catch (error) {
         console.error('Add comment error:', error);
+        res.status(500).json({ message: '服务器错误' });
+    }
+});
+
+// Delete a post
+router.delete('/:id', auth, async (req, res) => {
+    try {
+        const post = await Post.findById(req.params.id);
+
+        if (!post) {
+            return res.status(404).json({ message: '帖子不存在' });
+        }
+
+        // Check ownership
+        if (post.userId.toString() !== req.userId) {
+            return res.status(403).json({ message: '无权删除此帖子' });
+        }
+
+        // Delete the post
+        await Post.deleteOne({ _id: post._id });
+
+        // Delete associated comments
+        await Comment.deleteMany({ postId: post._id });
+
+        // Delete associated notifications
+        await Notification.deleteMany({ postId: post._id });
+
+        res.json({ message: '删除成功' });
+    } catch (error) {
+        console.error('Delete post error:', error);
         res.status(500).json({ message: '服务器错误' });
     }
 });
