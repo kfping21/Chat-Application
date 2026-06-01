@@ -87,7 +87,7 @@ class MainActivity : AppCompatActivity() {
         // Listen for destination changes
         navController.addOnDestinationChangedListener { _, destination, _ ->
             when (destination.id) {
-                R.id.secretDetailFragment, R.id.whisperChatFragment, R.id.nav_post,
+                R.id.secretDetailFragment, R.id.whisperChatFragment, R.id.partyChatFragment, R.id.nav_post,
                 R.id.loginFragment -> {
                     bottomNavContainer.visibility = View.GONE
                 }

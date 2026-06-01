@@ -81,7 +81,8 @@ interface PostsApi {
     @GET("api/posts/feed")
     suspend fun getFeed(
         @Query("page") page: Int = 1,
-        @Query("limit") limit: Int = 10
+        @Query("limit") limit: Int = 10,
+        @Query("type") type: String = "all"
     ): Response<FeedResponse>
 
     @GET("api/posts/my")
@@ -101,4 +102,11 @@ interface PostsApi {
 
     @POST("api/posts/{id}/comment")
     suspend fun addComment(@Path("id") id: String, @Body request: AddCommentRequest): Response<CommentResponse>
+
+    @DELETE("api/posts/{id}")
+    suspend fun deletePost(@Path("id") id: String): Response<MessageResponse>
 }
+
+data class MessageResponse(
+    val message: String
+)

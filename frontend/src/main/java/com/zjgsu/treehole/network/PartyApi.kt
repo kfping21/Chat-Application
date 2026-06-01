@@ -11,6 +11,8 @@ data class PartyRoomDto(
     val id: String,
     val name: String,
     val subtitle: String,
+    val participantCount: Int = 0,
+    val maxParticipants: Int = 6,
     val onlineCount: Int,
     val heat: Int,
     val messageCount: Int,
@@ -38,13 +40,16 @@ data class PartyMessageDto(
     val senderId: String,
     val senderNickname: String,
     val content: String,
-    val createdAt: String
+    val createdAt: String,
+    val isSystemMessage: Boolean = false
 )
 
 data class PartyRoomInfoDto(
     val id: String,
     val name: String,
-    val subtitle: String
+    val subtitle: String,
+    val participantCount: Int = 0,
+    val maxParticipants: Int = 6
 )
 
 data class PartyMessagesResponse(
@@ -60,6 +65,11 @@ data class SendPartyMessageResponse(
     val message: PartyMessageDto
 )
 
+data class JoinRoomResponse(
+    val message: String,
+    val room: PartyRoomInfoDto
+)
+
 interface PartyApi {
     @POST("api/party/rooms")
     suspend fun createRoom(
@@ -68,6 +78,16 @@ interface PartyApi {
 
     @GET("api/party/rooms")
     suspend fun getRooms(): Response<PartyRoomsResponse>
+
+    @POST("api/party/rooms/{roomId}/join")
+    suspend fun joinRoom(
+        @Path("roomId") roomId: String
+    ): Response<JoinRoomResponse>
+
+    @POST("api/party/rooms/{roomId}/leave")
+    suspend fun leaveRoom(
+        @Path("roomId") roomId: String
+    ): Response<MessageResponse>
 
     @GET("api/party/messages/{roomId}")
     suspend fun getMessages(

@@ -24,26 +24,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Title: 遇见 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/title_explore"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="@color/gold_primary"
-            android:letterSpacing="0.05"
-            android:fontFamily="sans-serif-medium" />
-
-        <!-- Subtitle -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:text="探索灵魂的交汇"
-            android:textSize="11sp"
-            android:textColor="@color/text_muted"
-            android:letterSpacing="0.1" />
 
     </LinearLayout>
 

@@ -29,17 +29,10 @@
             android:textStyle="bold"
             android:textColor="@color/gold_primary"
             android:letterSpacing="0.05"
-            android:fontFamily="sans-serif-medium" />
+            android:fontFamily="sans-serif-medium"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="16dp" />
 
-        <!-- Subtitle -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:text="你的回响与共鸣"
-            android:textSize="11sp"
-            android:textColor="@color/text_muted"
-            android:letterSpacing="0.1" />
 
         <!-- Tabs: 评论 / 私聊 -->
         <LinearLayout

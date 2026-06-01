@@ -49,7 +49,9 @@ data class UserProfileResponse(
     val createdAt: String,
     val postsCount: Int,
     val commentsCount: Int,
+    val chatRoomsCount: Int,
     val isFollowing: Boolean,
+    val isOnline: Boolean,
     val followersCount: Int,
     val followingCount: Int
 )
@@ -65,6 +67,19 @@ data class ExploreUserDto(
 
 data class ExploreUsersResponse(
     val users: List<ExploreUserDto>
+)
+
+data class FollowUserDto(
+    val id: String,
+    val nickname: String,
+    val avatar: String,
+    val bio: String,
+    val isOnline: Boolean,
+    val isFollowing: Boolean
+)
+
+data class FollowListResponse(
+    val users: List<FollowUserDto>
 )
 
 interface AuthApi {
@@ -97,4 +112,10 @@ interface AuthApi {
 
     @GET("api/user/discover")
     suspend fun getExploreUsers(@Query("limit") limit: Int = 60): Response<ExploreUsersResponse>
+
+    @GET("api/user/{id}/following")
+    suspend fun getFollowing(@Path("id") userId: String): Response<FollowListResponse>
+
+    @GET("api/user/{id}/followers")
+    suspend fun getFollowers(@Path("id") userId: String): Response<FollowListResponse>
 }

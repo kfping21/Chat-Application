@@ -27,6 +27,8 @@ import com.zjgsu.treehole.network.RetrofitClient
 import com.zjgsu.treehole.network.TokenManager
 import com.zjgsu.treehole.network.WhisperWebSocket
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -50,6 +52,9 @@ class WhisperChatFragment : Fragment(), WhisperWebSocket.OnWhisperListener {
     private lateinit var progressAiLoading: ProgressBar
     private lateinit var tvAiSuggestionPrimary: TextView
     private lateinit var tvAiSuggestionSecondary: TextView
+    private lateinit var tvChatStatus: TextView
+    private lateinit var viewOnlineDot: View
+    private lateinit var viewStatusIndicator: View
 
     private var roomId: String = ""
     private var participantId: String = ""
@@ -63,6 +68,8 @@ class WhisperChatFragment : Fragment(), WhisperWebSocket.OnWhisperListener {
     private var isSendingMessage = false  // 防止重复发送
     private var isLoadingHistory = false  // 防止重复加载历史消息
     private val loadedMessageIds = mutableSetOf<String>()  // 已加载的消息ID，用于去重
+    private var statusUpdateJob: Job? = null
+    private val statusPollInterval = 3000L  // 3秒轮询在线状态
 
     companion object {
         private const val TAG = "WhisperChat"
@@ -104,6 +111,9 @@ class WhisperChatFragment : Fragment(), WhisperWebSocket.OnWhisperListener {
         progressAiLoading = view.findViewById(R.id.progress_ai_loading)
         tvAiSuggestionPrimary = view.findViewById(R.id.tv_ai_suggestion_primary)
         tvAiSuggestionSecondary = view.findViewById(R.id.tv_ai_suggestion_secondary)
+        tvChatStatus = view.findViewById(R.id.tv_chat_status)
+        viewOnlineDot = view.findViewById(R.id.view_online_dot)
+        viewStatusIndicator = view.findViewById(R.id.view_status_indicator)
 
         // Hide AI helper in chat by default
         aiHelperContainer.visibility = View.GONE
@@ -178,6 +188,9 @@ class WhisperChatFragment : Fragment(), WhisperWebSocket.OnWhisperListener {
             WhisperWebSocket.connect(currentUserId, currentNickname, this)
             // Load history immediately - it will be deduplicated
             loadChatHistory()
+        } else if (WhisperWebSocket.isConnected()) {
+            // Already connected, just fetch online status
+            fetchOnlineStatus()
         }
     }
 
@@ -187,6 +200,55 @@ class WhisperChatFragment : Fragment(), WhisperWebSocket.OnWhisperListener {
         // This is safe because loadChatHistory clears existing messages first
         if (roomId.isNotEmpty()) {
             loadChatHistory()
+            fetchOnlineStatus()
+            startStatusPolling()
+        }
+    }
+
+    private fun startStatusPolling() {
+        statusUpdateJob?.cancel()
+        statusUpdateJob = viewLifecycleOwner.lifecycleScope.launch {
+            while (true) {
+                delay(statusPollInterval)
+                if (roomId.isNotEmpty() && WhisperWebSocket.isConnected()) {
+                    WhisperWebSocket.requestOnlineUsers()
+                }
+            }
+        }
+    }
+
+    private fun fetchOnlineStatus() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                // Check database isOnline field - this is set when user logs in
+                val profileResponse = withContext(Dispatchers.IO) {
+                    RetrofitClient.authApi.getUserProfile(participantId)
+                }
+                if (profileResponse.isSuccessful) {
+                    val profile = profileResponse.body()
+                    if (profile != null) {
+                        updateOnlineStatus(profile.isOnline)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Fetch online status error: ${e.message}")
+            }
+        }
+    }
+
+    private fun updateOnlineStatus(isOnline: Boolean) {
+        activity?.runOnUiThread {
+            if (isOnline) {
+                viewOnlineDot.visibility = View.VISIBLE
+                viewStatusIndicator.setBackgroundResource(R.drawable.bg_online_dot)
+                tvChatStatus.text = "在线"
+                tvChatStatus.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.mood_happy))
+            } else {
+                viewOnlineDot.visibility = View.GONE
+                viewStatusIndicator.setBackgroundResource(R.drawable.bg_status_offline)
+                tvChatStatus.text = "离线"
+                tvChatStatus.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.text_muted))
+            }
         }
     }
 
@@ -465,8 +527,14 @@ class WhisperChatFragment : Fragment(), WhisperWebSocket.OnWhisperListener {
         }
     }
 
+    override fun onOnlineUsersUpdated(onlineUserIds: List<String>) {
+        // Ignore WebSocket-based online status - we use database isOnline field instead
+        // This prevents WebSocket disconnect from incorrectly showing user as offline
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        statusUpdateJob?.cancel()
         if (isJoined) {
             WhisperWebSocket.leaveRoom(roomId)
         }

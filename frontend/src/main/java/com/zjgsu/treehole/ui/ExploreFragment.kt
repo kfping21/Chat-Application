@@ -123,11 +123,28 @@ class ExploreFragment : Fragment() {
         rvActivities?.layoutManager = GridLayoutManager(requireContext(), 2)
         rvActivities?.addItemDecoration(GridSpacingItemDecoration(2, roomSpacing, false))
         partyRoomAdapter = PartyRoomAdapter(mutableListOf()) { room ->
-            val args = Bundle().apply {
-                putString("roomId", room.id)
-                putString("roomName", room.name)
+            // First try to join the room
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    val response = withContext(Dispatchers.IO) {
+                        RetrofitClient.partyApi.joinRoom(room.id)
+                    }
+                    if (response.isSuccessful || response.code() == 200) {
+                        // Join successful or already in room
+                        val args = Bundle().apply {
+                            putString("roomId", room.id)
+                            putString("roomName", room.name)
+                        }
+                        findNavController().navigate(R.id.partyChatFragment, args)
+                    } else if (response.code() == 400) {
+                        Toast.makeText(requireContext(), "聊天室已满（最多6人）", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(requireContext(), "加入失败", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(requireContext(), "加入失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
             }
-            findNavController().navigate(R.id.partyChatFragment, args)
         }
         rvActivities?.adapter = partyRoomAdapter
         loadPartyRooms()
@@ -164,20 +181,20 @@ class ExploreFragment : Fragment() {
                 }
                 if (response.isSuccessful) {
                     val users = response.body()?.users.orEmpty()
-                    val displayUsers = users
-                        .filter { it.nickname.isNotBlank() || it.bio.isNotBlank() }
-                    sphereUsers = displayUsers
-                    val souls = displayUsers.map { user ->
+                    // Show all users - if no bio, show "该用户没有任何介绍"
+                    sphereUsers = users
+                    val souls = users.map { user ->
                             SphereSoul(
                                 id = user.id,
                                 nickname = user.nickname.ifBlank { "匿名用户" },
-                                mood = user.bio.ifBlank { "嗨，我在树洞，想认真认识同频的你。" }
+                                mood = user.bio.ifBlank { "该用户没有任何介绍" }
                             )
                         }
                     starrySkyView.setSouls(souls)
                 }
             } catch (_: Exception) {
-                // keep fallback souls rendered by StarrySkyView
+                // Show empty when API fails
+                starrySkyView.setSouls(emptyList())
             }
         }
     }
