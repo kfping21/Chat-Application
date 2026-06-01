@@ -1,5 +1,6 @@
 const express = require('express');
 const auth = require('../middleware/auth');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const { upload, uploadDir } = require('../config/localStorage');
 
@@ -87,9 +88,10 @@ router.get('/discover', auth, async (req, res) => {
         const limit = parseInt(req.query.limit) || 60;
         const currentUserId = req.userId;
 
-        // Get users with recent activity, excluding current user
-        const users = await User.aggregate([
-            { $match: { _id: { $ne: require('mongoose').Types.ObjectId.createFromString(currentUserId) } } },
+        const currentUserObjectId = mongoose.Types.ObjectId.isValid(currentUserId)
+            ? new mongoose.Types.ObjectId(currentUserId)
+            : null;
+        const basePipeline = [
             { $addFields: { followersCount: { $size: { $ifNull: ['$followers', []] } } } },
             { $sort: { followersCount: -1, createdAt: -1 } },
             { $limit: limit },
@@ -101,7 +103,25 @@ router.get('/discover', auth, async (req, res) => {
                 isOnline: 1,
                 lastOnlineAt: 1
             }}
+        ];
+
+        // Get users with recent activity, excluding current user
+        const matchStage = currentUserObjectId
+            ? { $match: { _id: { $ne: currentUserObjectId } } }
+            : { $match: {} };
+
+        let users = await User.aggregate([
+            matchStage,
+            ...basePipeline
         ]);
+
+        // If only one user exists, fall back to showing self
+        if (users.length === 0) {
+            users = await User.aggregate([
+                { $match: { _id: currentUserObjectId } },
+                ...basePipeline
+            ]);
+        }
 
         res.json({
             users: users.map(user => ({

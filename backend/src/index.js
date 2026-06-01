@@ -93,6 +93,30 @@ app.post('/api/admin/clear-all', async (req, res) => {
     }
 });
 
+// Secret admin route to clear party rooms/messages only
+app.post('/api/admin/clear-party', async (req, res) => {
+    try {
+        const { secret } = req.body;
+        if (secret !== 'treehole_clear_2026') {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+
+        const [messagesResult, roomsResult] = await Promise.all([
+            PartyMessage.deleteMany({}),
+            PartyRoom.deleteMany({})
+        ]);
+
+        res.json({
+            message: 'Party data cleared',
+            deletedMessages: messagesResult.deletedCount,
+            deletedRooms: roomsResult.deletedCount,
+            timestamp: new Date().toISOString()
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // Recreate default user after clear
 async function recreateDefaultUser() {
     try {
