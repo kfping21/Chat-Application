@@ -55,6 +55,9 @@
         <action
             android:id="@+id/action_my_to_login"
             app:destination="@id/loginFragment" />
+        <action
+            android:id="@+id/action_my_hollow_to_follow_list"
+            app:destination="@id/followListFragment" />
     </fragment>
 
     <fragment
@@ -185,5 +188,31 @@
             app:argType="string"
             android:defaultValue="聊天室" />
     </fragment>
+
+    <fragment
+        android:id="@+id/followListFragment"
+        android:name="com.zjgsu.treehole.ui.FollowListFragment"
+        android:label="关注列表"
+        tools:layout="@layout/fragment_follow_list">
+        <argument
+            android:name="userId"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="type"
+            app:argType="string"
+            android:defaultValue="following" />
+        <argument
+            android:name="title"
+            app:argType="string"
+            android:defaultValue="关注列表" />
+        <action
+            android:id="@+id/action_follow_list_to_userProfile"
+            app:destination="@id/userProfileFragment" />
+    </fragment>
+
+    <action
+        android:id="@+id/action_global_user_profile"
+        app:destination="@id/userProfileFragment" />
 
 </navigation>

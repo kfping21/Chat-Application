@@ -1,116 +1,255 @@
 const express = require('express');
 const auth = require('../middleware/auth');
-const PartyRoom = require('../models/PartyRoom');
-const PartyMessage = require('../models/PartyMessage');
-const User = require('../models/User');
+const { PartyRoom, PartyMessage } = require('../models/Party');
 
 const router = express.Router();
 
+// Get all party rooms
+router.get('/rooms', auth, async (req, res) => {
+    try {
+        const rooms = await PartyRoom.find()
+            .sort({ heat: -1, lastMessageAt: -1 })
+            .limit(50)
+            .select('_id name subtitle participants maxParticipants onlineCount heat messageCount lastMessage lastMessageAt')
+            .lean();
+
+        res.json({
+            rooms: rooms.map(room => ({
+                id: room._id.toString(),
+                name: room.name,
+                subtitle: room.subtitle || '',
+                participantCount: room.participants?.length || 0,
+                maxParticipants: room.maxParticipants || 6,
+                onlineCount: room.onlineCount || 0,
+                heat: room.heat || 0,
+                messageCount: room.messageCount || 0,
+                lastMessage: room.lastMessage || '',
+                lastMessageAt: room.lastMessageAt ? room.lastMessageAt.toISOString() : null
+            }))
+        });
+    } catch (error) {
+        console.error('Get party rooms error:', error);
+        res.status(500).json({ message: '服务器错误' });
+    }
+});
+
+// Create a new party room
 router.post('/rooms', auth, async (req, res) => {
     try {
-        const name = (req.body?.name || '').trim();
-        const subtitle = (req.body?.subtitle || '').trim();
+        const { name, subtitle } = req.body;
 
-        if (!name) {
+        if (!name || name.trim().length === 0) {
             return res.status(400).json({ message: '聊天室名称不能为空' });
         }
-        if (name.length > 60) {
-            return res.status(400).json({ message: '聊天室名称不能超过60个字符' });
-        }
-        if (subtitle.length > 120) {
-            return res.status(400).json({ message: '简介不能超过120个字符' });
+
+        if (name.length > 50) {
+            return res.status(400).json({ message: '聊天室名称不能超过50字' });
         }
 
-        const existing = await PartyRoom.findOne({ name }).lean();
-        if (existing) {
-            return res.status(400).json({ message: '聊天室名称已存在' });
-        }
+        const User = require('../models/User');
+        const creator = await User.findById(req.userId).select('nickname').lean();
+        const creatorName = creator?.nickname || '匿名用户';
 
-        const room = await PartyRoom.create({
-            name,
-            subtitle,
-            onlineCount: 0,
-            heat: 0
+        const room = new PartyRoom({
+            name: name.trim(),
+            subtitle: subtitle?.trim() || '',
+            creatorId: req.userId,
+            participants: [req.userId]  // Creator automatically joins
         });
 
+        await room.save();
+
+        // Add system message for room creation
+        const systemMessage = new PartyMessage({
+            roomId: room._id,
+            senderId: 'system',
+            senderNickname: '系统',
+            content: `${creatorName} 创建了聊天室`,
+            isSystemMessage: true
+        });
+        await systemMessage.save();
+
         res.status(201).json({
-            message: '创建成功',
+            message: '聊天室创建成功',
             room: {
                 id: room._id.toString(),
                 name: room.name,
                 subtitle: room.subtitle || '',
-                onlineCount: 0,
-                heat: 0,
-                messageCount: 0,
-                lastMessage: '',
-                lastMessageAt: null
+                participantCount: room.participants.length,
+                maxParticipants: room.maxParticipants,
+                onlineCount: room.onlineCount || 0,
+                heat: room.heat || 0,
+                messageCount: room.messageCount || 0,
+                lastMessage: room.lastMessage || '',
+                lastMessageAt: room.lastMessageAt ? room.lastMessageAt.toISOString() : null
             }
         });
     } catch (error) {
         console.error('Create party room error:', error);
-        res.status(500).json({ message: '创建聊天室失败' });
+        res.status(500).json({ message: '服务器错误' });
     }
 });
 
-router.get('/rooms', auth, async (req, res) => {
+// Join a party room
+router.post('/rooms/:roomId/join', auth, async (req, res) => {
     try {
-        const rooms = await PartyRoom.find().sort({ createdAt: -1 }).lean();
-        const roomIds = rooms.map(r => r._id);
+        const { roomId } = req.params;
+        const room = await PartyRoom.findById(roomId);
 
-        if (roomIds.length === 0) {
-            return res.json({ rooms: [] });
+        if (!room) {
+            return res.status(404).json({ message: '聊天室不存在' });
         }
 
-        const latest = await PartyMessage.aggregate([
-            { $match: { roomId: { $in: roomIds } } },
-            { $sort: { createdAt: -1 } },
-            { $group: { _id: '$roomId', message: { $first: '$content' }, createdAt: { $first: '$createdAt' } } }
-        ]);
-        const latestMap = new Map(latest.map(m => [m._id.toString(), m]));
+        // Check if already a participant (compare both as strings)
+        if (room.participants.some(p => p.toString() === req.userId)) {
+            return res.json({
+                message: '已经在聊天室中',
+                room: {
+                    id: room._id.toString(),
+                    name: room.name,
+                    subtitle: room.subtitle || '',
+                    participantCount: room.participants.length,
+                    maxParticipants: room.maxParticipants
+                }
+            });
+        }
 
-        const counts = await PartyMessage.aggregate([
-            { $match: { roomId: { $in: roomIds } } },
-            { $group: { _id: '$roomId', count: { $sum: 1 } } }
-        ]);
-        const countMap = new Map(counts.map(c => [c._id.toString(), c.count]));
+        // Check if room is full
+        if (room.participants.length >= room.maxParticipants) {
+            return res.status(400).json({ message: '聊天室已满（最多6人）' });
+        }
 
-        // 在线人数：最近5分钟内在该房间发过言的去重用户数（真实活跃人数）
-        const activeSince = new Date(Date.now() - 5 * 60 * 1000);
-        const activeUsers = await PartyMessage.aggregate([
-            { $match: { roomId: { $in: roomIds }, createdAt: { $gte: activeSince } } },
-            { $group: { _id: { roomId: '$roomId', senderId: '$senderId' } } },
-            { $group: { _id: '$_id.roomId', count: { $sum: 1 } } }
-        ]);
-        const activeMap = new Map(activeUsers.map(a => [a._id.toString(), a.count]));
+        // Get user nickname
+        const User = require('../models/User');
+        const user = await User.findById(req.userId).select('nickname').lean();
+        const userName = user?.nickname || '匿名用户';
+
+        room.participants.push(req.userId);
+        room.onlineCount = room.participants.length;
+        await room.save();
+
+        // Add system message for join
+        const joinMessage = new PartyMessage({
+            roomId: room._id,
+            senderId: 'system',
+            senderNickname: '系统',
+            content: `${userName} 加入了聊天室`,
+            isSystemMessage: true
+        });
+        await joinMessage.save();
 
         res.json({
-            rooms: rooms.map(r => {
-                const roomId = r._id.toString();
-                const messageCount = countMap.get(roomId) || 0;
-                return {
-                id: r._id.toString(),
-                name: r.name,
-                subtitle: r.subtitle || '',
-                onlineCount: activeMap.get(roomId) || 0,
-                heat: messageCount,
-                messageCount,
-                lastMessage: latestMap.get(roomId)?.message || '',
-                lastMessageAt: latestMap.get(roomId)?.createdAt || null
-            };
-            })
+            message: '加入成功',
+            room: {
+                id: room._id.toString(),
+                name: room.name,
+                subtitle: room.subtitle || '',
+                participantCount: room.participants.length,
+                maxParticipants: room.maxParticipants
+            }
         });
     } catch (error) {
-        console.error('Get party rooms error:', error);
-        res.status(500).json({ message: '获取聊天室失败' });
+        console.error('Join party room error:', error);
+        res.status(500).json({ message: '服务器错误' });
     }
 });
 
+// Leave a party room
+router.post('/rooms/:roomId/leave', auth, async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const room = await PartyRoom.findById(roomId);
+
+        if (!room) {
+            return res.status(404).json({ message: '聊天室不存在' });
+        }
+
+        // Get user nickname before removing
+        const User = require('../models/User');
+        const user = await User.findById(req.userId).select('nickname').lean();
+        const userName = user?.nickname || '匿名用户';
+
+        room.participants = room.participants.filter(
+            p => p.toString() !== req.userId
+        );
+
+        // Add system message for leave BEFORE checking if room will be empty
+        const leaveMessage = new PartyMessage({
+            roomId: room._id,
+            senderId: 'system',
+            senderNickname: '系统',
+            content: `${userName} 退出了聊天室`,
+            isSystemMessage: true
+        });
+        await leaveMessage.save();
+
+        // Check if room should be destroyed (participants < 1)
+        if (room.participants.length < 1) {
+            // Delete all messages in this room
+            await PartyMessage.deleteMany({ roomId: room._id });
+            // Delete the room
+            await PartyRoom.deleteOne({ _id: room._id });
+            return res.json({ message: '已离开聊天室，聊天室已解散' });
+        }
+
+        room.onlineCount = room.participants.length;
+        await room.save();
+
+        res.json({ message: '已离开聊天室' });
+    } catch (error) {
+        console.error('Leave party room error:', error);
+        res.status(500).json({ message: '服务器错误' });
+    }
+});
+
+// Get party room details
+router.get('/rooms/:roomId', auth, async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const room = await PartyRoom.findById(roomId)
+            .populate('participants', 'nickname avatar')
+            .lean();
+
+        if (!room) {
+            return res.status(404).json({ message: '聊天室不存在' });
+        }
+
+        const User = require('../models/User');
+        const currentUser = await User.findById(req.userId).select('nickname avatar').lean();
+        const isParticipant = room.participants.some(
+            p => p._id.toString() === req.userId
+        );
+
+        res.json({
+            room: {
+                id: room._id.toString(),
+                name: room.name,
+                subtitle: room.subtitle || '',
+                participantCount: room.participants.length,
+                maxParticipants: room.maxParticipants,
+                participants: room.participants.map(p => ({
+                    id: p._id.toString(),
+                    nickname: p.nickname,
+                    avatar: p.avatar
+                })),
+                isParticipant: isParticipant,
+                isCreator: room.creatorId.toString() === req.userId
+            }
+        });
+    } catch (error) {
+        console.error('Get party room error:', error);
+        res.status(500).json({ message: '服务器错误' });
+    }
+});
+
+// Get messages from a party room
 router.get('/messages/:roomId', auth, async (req, res) => {
     try {
         const { roomId } = req.params;
-        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 80, 1), 200);
+        const limit = parseInt(req.query.limit) || 80;
 
-        const room = await PartyRoom.findById(roomId);
+        const room = await PartyRoom.findById(roomId).select('_id name subtitle').lean();
+
         if (!room) {
             return res.status(404).json({ message: '聊天室不存在' });
         }
@@ -118,6 +257,7 @@ router.get('/messages/:roomId', auth, async (req, res) => {
         const messages = await PartyMessage.find({ roomId })
             .sort({ createdAt: -1 })
             .limit(limit)
+            .select('_id roomId senderId senderNickname content createdAt')
             .lean();
 
         res.json({
@@ -126,46 +266,61 @@ router.get('/messages/:roomId', auth, async (req, res) => {
                 name: room.name,
                 subtitle: room.subtitle || ''
             },
-            messages: messages.reverse().map(m => ({
-                id: m._id.toString(),
-                roomId: m.roomId.toString(),
-                senderId: m.senderId.toString(),
-                senderNickname: m.senderNickname,
-                content: m.content,
-                createdAt: m.createdAt
+            messages: messages.reverse().map(msg => ({
+                id: msg._id.toString(),
+                roomId: msg.roomId.toString(),
+                senderId: msg.senderId.toString(),
+                senderNickname: msg.senderNickname,
+                content: msg.content,
+                createdAt: msg.createdAt.toISOString(),
+                isSystemMessage: msg.isSystemMessage || false
             }))
         });
     } catch (error) {
         console.error('Get party messages error:', error);
-        res.status(500).json({ message: '获取聊天记录失败' });
+        res.status(500).json({ message: '服务器错误' });
     }
 });
 
+// Send a message to a party room
 router.post('/messages/:roomId', auth, async (req, res) => {
     try {
         const { roomId } = req.params;
         const { content } = req.body;
-        const trimmed = (content || '').trim();
-        if (!trimmed) {
-            return res.status(400).json({ message: '消息不能为空' });
+
+        if (!content || content.trim().length === 0) {
+            return res.status(400).json({ message: '消息内容不能为空' });
+        }
+
+        if (content.length > 500) {
+            return res.status(400).json({ message: '消息内容不能超过500字' });
         }
 
         const room = await PartyRoom.findById(roomId);
+
         if (!room) {
             return res.status(404).json({ message: '聊天室不存在' });
         }
 
-        const sender = await User.findById(req.userId).select('nickname').lean();
-        if (!sender) {
-            return res.status(404).json({ message: '用户不存在' });
-        }
+        // Get user info
+        const User = require('../models/User');
+        const user = await User.findById(req.userId).select('nickname').lean();
 
-        const message = await PartyMessage.create({
+        const message = new PartyMessage({
             roomId,
             senderId: req.userId,
-            senderNickname: (sender.nickname || req.username || '匿名用户').trim(),
-            content: trimmed
+            senderNickname: user?.nickname || '匿名用户',
+            content: content.trim()
         });
+
+        await message.save();
+
+        // Update room stats
+        room.messageCount += 1;
+        room.heat += 1;
+        room.lastMessage = content.substring(0, 50);
+        room.lastMessageAt = new Date();
+        await room.save();
 
         res.status(201).json({
             message: {
@@ -174,12 +329,12 @@ router.post('/messages/:roomId', auth, async (req, res) => {
                 senderId: message.senderId.toString(),
                 senderNickname: message.senderNickname,
                 content: message.content,
-                createdAt: message.createdAt
+                createdAt: message.createdAt.toISOString()
             }
         });
     } catch (error) {
         console.error('Send party message error:', error);
-        res.status(500).json({ message: '发送消息失败' });
+        res.status(500).json({ message: '服务器错误' });
     }
 });
 

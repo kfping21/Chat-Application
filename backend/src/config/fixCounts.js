@@ -3,7 +3,6 @@
 
 const mongoose = require('mongoose');
 require('dotenv').config();
-const { FIXED_MONGO_URI } = require('./mongoUri');
 
 const Post = require('./models/Post');
 const Comment = require('./models/Comment');
@@ -11,7 +10,7 @@ const Notification = require('./models/Notification');
 
 async function migrate() {
     try {
-        await mongoose.connect(FIXED_MONGO_URI);
+        await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/treehole');
         console.log('Connected to MongoDB');
 
         // 1. Fix comment counts for all posts

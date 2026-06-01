@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const JWT_SECRET = 'treehole_secret_key_2024';
+// JWT密钥从环境变量读取，默认为开发环境密钥
+const JWT_SECRET = process.env.JWT_SECRET || 'treehole_dev_secret_key_2024_do_not_use_in_production';
 
 const auth = (req, res, next) => {
     try {

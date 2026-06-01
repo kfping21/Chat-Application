@@ -29,7 +29,7 @@ class PartyRoomAdapter(
         val room = rooms[position]
         holder.tvName.text = room.name
         holder.tvSubtitle.text = room.subtitle.ifBlank { "来都来了，说两句吧" }
-        holder.tvMeta.text = "在线 ${room.onlineCount} · 热度 ${room.heat}"
+        holder.tvMeta.text = "${room.participantCount}/${room.maxParticipants}人 · 热度 ${room.heat}"
         holder.itemView.setOnClickListener { onClick(room) }
     }
 

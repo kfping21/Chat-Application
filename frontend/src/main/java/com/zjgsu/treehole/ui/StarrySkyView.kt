@@ -44,17 +44,8 @@ class StarrySkyView @JvmOverloads constructor(
         0xFFA5F3FC.toInt(), 0xFFBFDBFE.toInt(), 0xFFFBCFE8.toInt(),
         0xFFC4B5FD.toInt(), 0xFF86EFAC.toInt(), 0xFFFDE68A.toInt()
     )
-    private val fallbackSouls = listOf(
-        SphereSoul("f1", "小新", "今晚有点失眠，想找个能聊得来的人。"),
-        SphereSoul("f2", "依彤", "白天很坚强，夜里还是会脆弱。"),
-        SphereSoul("f3", "秋刀鱼", "最近压力很大，想找个温柔的人说说话。"),
-        SphereSoul("f4", "可乐不加冰", "一个人久了，也会想被温柔回应。"),
-        SphereSoul("f5", "婉婉", "想认真认识一些有趣的灵魂。"),
-        SphereSoul("f6", "清颜", "有些话不想打扰朋友，只想安静倾诉。")
-    )
-
-    private var souls: List<SphereSoul> = fallbackSouls
-    private var points: List<FloatArray> = buildFibonacciPoints(souls.size)
+    private var souls: List<SphereSoul> = emptyList()
+    private var points: List<FloatArray> = emptyList()
     private var projectedNodes: List<ProjectedNode> = emptyList()
 
     private var rotateY = 0.22f
@@ -110,8 +101,8 @@ class StarrySkyView @JvmOverloads constructor(
     }
 
     fun setSouls(list: List<SphereSoul>) {
-        souls = if (list.isEmpty()) fallbackSouls else list
-        points = buildFibonacciPoints(souls.size)
+        souls = list
+        points = buildFibonacciPoints(list.size)
         invalidate()
     }
 
@@ -211,7 +202,8 @@ class StarrySkyView @JvmOverloads constructor(
     }
 
     private fun buildFibonacciPoints(count: Int): List<FloatArray> {
-        if (count <= 1) return listOf(floatArrayOf(0f, 0f, 1f))
+        if (count <= 0) return emptyList()
+        if (count == 1) return listOf(floatArrayOf(0f, 0f, 1f))
         val goldenAngle = PI * (3 - sqrt(5.0))
         return List(count) { i ->
             val y = 1f - (2f * (i + 0.5f) / count.toFloat())

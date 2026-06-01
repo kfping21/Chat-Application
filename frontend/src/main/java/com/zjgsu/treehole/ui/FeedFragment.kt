@@ -16,6 +16,7 @@ import com.zjgsu.treehole.adapter.SecretAdapter
 import com.zjgsu.treehole.cache.PostCacheManager
 import com.zjgsu.treehole.model.Secret
 import com.zjgsu.treehole.network.RetrofitClient
+import com.zjgsu.treehole.network.TokenManager
 import com.zjgsu.treehole.util.TimeUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -26,6 +27,8 @@ class FeedFragment : Fragment() {
     private lateinit var rv: RecyclerView
     private lateinit var tvEmpty: TextView
     private lateinit var progressBar: ProgressBar
+    private lateinit var tabRecommend: TextView
+    private lateinit var tabFollowing: TextView
 
     private var adapter: SecretAdapter? = null
     private val secrets = mutableListOf<Secret>()
@@ -33,6 +36,7 @@ class FeedFragment : Fragment() {
     private var currentPage = 1
     private var hasMore = true
     private val pageSize = 10
+    private var currentFeedType = "all" // "all" or "following"
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -45,10 +49,29 @@ class FeedFragment : Fragment() {
         rv = view.findViewById(R.id.rv_feed)
         tvEmpty = view.findViewById(R.id.tv_empty)
         progressBar = view.findViewById(R.id.progress_bar)
+        tabRecommend = view.findViewById(R.id.tab_recommend)
+        tabFollowing = view.findViewById(R.id.tab_following)
 
         rv.layoutManager = LinearLayoutManager(requireContext())
-        adapter = SecretAdapter(secrets) { postId, _ -> likePost(postId) }
+        adapter = SecretAdapter(secrets, { postId, _ -> likePost(postId) }, null, false)
         rv.adapter = adapter
+
+        // Tab click listeners
+        tabRecommend.setOnClickListener {
+            if (currentFeedType != "all") {
+                currentFeedType = "all"
+                updateTabStyle()
+                refreshFeed()
+            }
+        }
+
+        tabFollowing.setOnClickListener {
+            if (currentFeedType != "following") {
+                currentFeedType = "following"
+                updateTabStyle()
+                refreshFeed()
+            }
+        }
 
         rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
@@ -83,6 +106,16 @@ class FeedFragment : Fragment() {
         // If secrets is not empty, data is already there - just show it
     }
 
+    private fun updateTabStyle() {
+        if (currentFeedType == "all") {
+            tabRecommend.setTextColor(resources.getColor(R.color.gold_primary, null))
+            tabFollowing.setTextColor(resources.getColor(R.color.text_muted, null))
+        } else {
+            tabRecommend.setTextColor(resources.getColor(R.color.text_muted, null))
+            tabFollowing.setTextColor(resources.getColor(R.color.gold_primary, null))
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         // Keep feed fresh when returning (new posts + latest counts)
@@ -94,7 +127,7 @@ class FeedFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val response = withContext(Dispatchers.IO) {
-                    RetrofitClient.postsApi.getFeed(page = 1, limit = pageSize)
+                    RetrofitClient.postsApi.getFeed(page = 1, limit = pageSize, type = currentFeedType)
                 }
                 if (response.isSuccessful) {
                     response.body()?.let { body ->
@@ -145,7 +178,7 @@ class FeedFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val response = withContext(Dispatchers.IO) {
-                    RetrofitClient.postsApi.getFeed(page = 1, limit = pageSize)
+                    RetrofitClient.postsApi.getFeed(page = 1, limit = pageSize, type = currentFeedType)
                 }
                 if (response.isSuccessful) {
                     secrets.clear()
@@ -171,7 +204,7 @@ class FeedFragment : Fragment() {
                     }
                     tvEmpty.visibility = if (secrets.isEmpty()) View.VISIBLE else View.GONE
                     if (secrets.isEmpty()) {
-                        tvEmpty.text = "暂无帖子"
+                        tvEmpty.text = if (currentFeedType == "following") "关注一些用户，查看他们的秘密" else "暂无帖子"
                     }
                     adapter?.notifyDataSetChanged()
                     // Cache for fast return
@@ -207,7 +240,7 @@ class FeedFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val response = withContext(Dispatchers.IO) {
-                    RetrofitClient.postsApi.getFeed(page = currentPage + 1, limit = pageSize)
+                    RetrofitClient.postsApi.getFeed(page = currentPage + 1, limit = pageSize, type = currentFeedType)
                 }
                 if (response.isSuccessful) {
                     response.body()?.let { body ->
@@ -257,31 +290,6 @@ class FeedFragment : Fragment() {
             } catch (e: Exception) {
                 // 点赞失败静默处理
             }
-        }
-    }
-
-    private fun fastFormatTime(dateString: String): String {
-        try {
-            val len = dateString.length
-            if (len < 10) return dateString
-            val year = dateString.substring(0, 4).toInt()
-            val month = dateString.substring(5, 7).toInt()
-            val day = dateString.substring(8, 10).toInt()
-            val hour = if (len > 11) dateString.substring(11, 13).toInt() else 0
-            val minute = if (len > 14) dateString.substring(14, 16).toInt() else 0
-            val now = java.util.Calendar.getInstance()
-            val then = java.util.Calendar.getInstance().apply { set(year, month - 1, day, hour, minute) }
-            val diffMin = (now.timeInMillis - then.timeInMillis) / 60000
-            val diffHour = diffMin / 60
-            val diffDay = diffHour / 24
-            return when {
-                diffDay > 0 -> "${diffDay}天前"
-                diffHour > 0 -> "${diffHour}小时前"
-                diffMin > 0 -> "${diffMin}分钟前"
-                else -> "刚刚"
-            }
-        } catch (e: Exception) {
-            return dateString
         }
     }
 }

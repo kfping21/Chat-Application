@@ -2,14 +2,17 @@
 
 require('dotenv').config();
 const mongoose = require('mongoose');
-const { FIXED_MONGO_URI, maskMongoUri } = require('./src/config/mongoUri');
 
-const MONGO_URI = FIXED_MONGO_URI;
+// Prefer MONGO_URI, fall back to DATABASE_URL (Railway) or local
+const MONGO_URI =
+    process.env.MONGO_URI ||
+    process.env.DATABASE_URL ||
+    'mongodb://localhost:27017/treehole';
 
 async function cleanup() {
     try {
         console.log('Connecting to MongoDB...');
-        console.log('URI:', maskMongoUri(MONGO_URI));
+        console.log('URI:', MONGO_URI.replace(/\/\/.*@/, '//***:***@'));
         await mongoose.connect(MONGO_URI);
         console.log('Connected!');
 

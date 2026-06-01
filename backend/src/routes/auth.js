@@ -3,8 +3,10 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 
+// JWT密钥从环境变量读取，默认为开发环境密钥
+const JWT_SECRET = process.env.JWT_SECRET || 'treehole_dev_secret_key_2024_do_not_use_in_production';
+
 const router = express.Router();
-const JWT_SECRET = 'treehole_secret_key_2024';
 
 // Register
 router.post('/register', async (req, res) => {
@@ -81,6 +83,12 @@ router.post('/login', async (req, res) => {
         if (!isMatch) {
             return res.status(400).json({ message: '用户名或密码错误' });
         }
+
+        // Update online status using findByIdAndUpdate
+        await User.findByIdAndUpdate(user._id, {
+            isOnline: true,
+            lastOnlineAt: new Date()
+        });
 
         // Generate token
         const token = jwt.sign(

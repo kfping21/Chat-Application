@@ -20,7 +20,9 @@ import com.zjgsu.treehole.ui.ClickAnimations
 
 class SecretAdapter(
     private val secrets: List<Secret>,
-    private val onLikeClick: ((String, Boolean) -> Unit)? = null
+    private val onLikeClick: ((String, Boolean) -> Unit)? = null,
+    private val onDeleteClick: ((String) -> Unit)? = null,
+    private val canDelete: Boolean = false
 ) : RecyclerView.Adapter<SecretAdapter.ViewHolder>() {
 
     private val likedState = mutableMapOf<String, Boolean>()
@@ -142,6 +144,14 @@ class SecretAdapter(
                 putBoolean("isLiked", currentLiked)
             }
             it.findNavController().navigate(R.id.secretDetailFragment, args)
+        }
+
+        // Long press - delete (only in MyHollow where canDelete is true)
+        if (canDelete) {
+            holder.itemView.setOnLongClickListener {
+                onDeleteClick?.invoke(secret.id)
+                true
+            }
         }
 
         // Like button click

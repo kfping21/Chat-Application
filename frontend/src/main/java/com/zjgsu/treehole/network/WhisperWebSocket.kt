@@ -14,8 +14,8 @@ object WhisperWebSocket {
 
     private const val TAG = "WhisperWS"
     private val socketUrlCandidates = listOf(
-        "http://10.234.171.102:3001/socket.io/?EIO=4&transport=websocket",
-        "http://10.234.171.102:3001/socket.io/?EIO=4&transport=websocket"
+        "http://10.199.113.114:3001/socket.io/?EIO=4&transport=websocket",
+        "http://10.199.113.114:3001/socket.io/?EIO=4&transport=websocket"
     )
 
     @Volatile
@@ -30,6 +30,7 @@ object WhisperWebSocket {
         fun onMessageLimitLifted(roomId: String)
         fun onUnreadUpdate(roomId: String, count: Int)
         fun onFollowUpdated(userId: String, isFollowing: Boolean)
+        fun onOnlineUsersUpdated(onlineUserIds: List<String>)
         fun onConnected()
         fun onDisconnected()
     }
@@ -52,7 +53,7 @@ object WhisperWebSocket {
 
     private val client = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
-        .pingInterval(25000, TimeUnit.MILLISECONDS)
+        .pingInterval(5000, TimeUnit.MILLISECONDS)
         .build()
 
     private var currentRoomId: String? = null
@@ -222,8 +223,24 @@ object WhisperWebSocket {
 
             val jsonArray = gson.fromJson(data, Array<Any>::class.java)
             val eventName = jsonArray.getOrNull(0) as? String ?: return
-            val eventData = jsonArray.getOrNull(1) as? Map<String, Any> ?: return
+            val eventDataRaw = jsonArray.getOrNull(1)
 
+            // Handle users-online specially - it sends an array directly, not an object
+            if (eventName == "users-online") {
+                val onlineIds = try {
+                    val idsArray = eventDataRaw as? Array<Any> ?: emptyArray()
+                    idsArray.mapNotNull { it.toString() }.filter { it.length > 10 }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Parse online users error: ${e.message}")
+                    emptyList()
+                }
+                scope.launch(Dispatchers.Main) {
+                    listener?.onOnlineUsersUpdated(onlineIds)
+                }
+                return
+            }
+
+            val eventData = eventDataRaw as? Map<String, Any> ?: return
             handleEvent(eventName, eventData)
         } catch (e: Exception) {
             Log.e(TAG, "Parse error: ${e.message}")
@@ -350,6 +367,12 @@ object WhisperWebSocket {
             "currentUserId" to userId,
             "targetUserId" to targetUserId
         ))
+    }
+
+    fun requestOnlineUsers() {
+        if (isConnected) {
+            sendEvent("request-online-users", "")
+        }
     }
 
     private fun disconnectImmediate() {
