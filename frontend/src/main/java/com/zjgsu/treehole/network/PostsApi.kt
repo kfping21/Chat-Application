@@ -78,6 +78,7 @@ data class CreatePostResponse(
 )
 
 interface PostsApi {
+    // ===== Posts CRUD =====
     @GET("api/posts/feed")
     suspend fun getFeed(
         @Query("page") page: Int = 1,
@@ -97,16 +98,58 @@ interface PostsApi {
     @POST("api/posts")
     suspend fun createPost(@Body request: CreatePostRequest): Response<CreatePostResponse>
 
-    @POST("api/posts/{id}/like")
-    suspend fun likePost(@Path("id") id: String): Response<LikeResponse>
-
-    @POST("api/posts/{id}/comment")
-    suspend fun addComment(@Path("id") id: String, @Body request: AddCommentRequest): Response<CommentResponse>
+    @PUT("api/posts/{id}")
+    suspend fun updatePost(
+        @Path("id") id: String,
+        @Body request: UpdatePostRequest
+    ): Response<CreatePostResponse>
 
     @DELETE("api/posts/{id}")
     suspend fun deletePost(@Path("id") id: String): Response<MessageResponse>
+
+    // ===== Liked Posts =====
+    @GET("api/posts/liked")
+    suspend fun getMyLikedPosts(): Response<MyPostsResponse>
+
+    // ===== Post Interactions =====
+    @POST("api/posts/{id}/like")
+    suspend fun likePost(@Path("id") id: String): Response<LikeResponse>
+
+    // ===== Comments CRUD =====
+    @POST("api/posts/{id}/comment")
+    suspend fun addComment(@Path("id") id: String, @Body request: AddCommentRequest): Response<CommentResponse>
+
+    @PUT("api/comments/{id}")
+    suspend fun updateComment(
+        @Path("id") id: String,
+        @Body request: AddCommentRequest
+    ): Response<CommentResponse>
+
+    @DELETE("api/comments/{id}")
+    suspend fun deleteComment(@Path("id") id: String): Response<MessageResponse>
+
+    // ===== My Comments =====
+    @GET("api/posts/comments/my")
+    suspend fun getMyComments(): Response<MyCommentsResponse>
 }
+
+data class UpdatePostRequest(
+    val content: String,
+    val mood: String = "平静"
+)
 
 data class MessageResponse(
     val message: String
+)
+
+data class MyCommentsResponse(
+    val comments: List<MyCommentDto>
+)
+
+data class MyCommentDto(
+    val id: String,
+    val content: String,
+    val createdAt: String,
+    val postId: String,
+    val post: PostDto?
 )

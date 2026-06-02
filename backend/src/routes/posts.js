@@ -151,6 +151,52 @@ router.get('/my', auth, async (req, res) => {
     }
 });
 
+// Get user's liked posts
+router.get('/liked', auth, async (req, res) => {
+    try {
+        const posts = await Post.find({ likedBy: req.userId })
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .select('_id content mood likes createdAt userId likedBy')
+            .lean();
+
+        // Fetch users in batch
+        const userIds = [...new Set(posts.map(p => p.userId.toString()))];
+        const users = await User.find({ _id: { $in: userIds } }).select('nickname avatar').lean();
+        const userMap = new Map(users.map(u => [u._id.toString(), u]));
+
+        // Get comment counts for all posts in batch
+        const commentCounts = await Comment.aggregate([
+            { $match: { postId: { $in: posts.map(p => p._id) } } },
+            { $group: { _id: '$postId', count: { $sum: 1 } } }
+        ]);
+        const commentCountMap = new Map(commentCounts.map(c => [c._id.toString(), c.count]));
+
+        const result = posts.map(post => {
+            const user = userMap.get(post.userId.toString());
+            return {
+                id: post._id.toString(),
+                content: post.content,
+                mood: post.mood,
+                likes: post.likes,
+                commentCount: commentCountMap.get(post._id.toString()) || 0,
+                createdAt: post.createdAt,
+                user: user ? {
+                    id: user._id.toString(),
+                    nickname: user.nickname,
+                    avatar: user.avatar
+                } : null,
+                isLiked: true
+            };
+        });
+
+        res.json({ posts: result });
+    } catch (error) {
+        console.error('Get liked posts error:', error);
+        res.status(500).json({ message: '服务器错误' });
+    }
+});
+
 // Get posts by user ID
 router.get('/user/:userId', auth, async (req, res) => {
     try {
@@ -387,6 +433,42 @@ router.delete('/:id', auth, async (req, res) => {
         res.json({ message: '删除成功' });
     } catch (error) {
         console.error('Delete post error:', error);
+        res.status(500).json({ message: '服务器错误' });
+    }
+});
+
+// Get user's comments
+router.get('/comments/my', auth, async (req, res) => {
+    try {
+        const comments = await Comment.find({ userId: req.userId })
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .select('_id content createdAt postId')
+            .lean();
+
+        // Get post info for each comment
+        const postIds = [...new Set(comments.map(c => c.postId.toString()))];
+        const posts = await Post.find({ _id: { $in: postIds } }).select('_id content mood').lean();
+        const postMap = new Map(posts.map(p => [p._id.toString(), p]));
+
+        const result = comments.map(comment => {
+            const post = postMap.get(comment.postId.toString());
+            return {
+                id: comment._id.toString(),
+                content: comment.content,
+                createdAt: comment.createdAt,
+                postId: comment.postId.toString(),
+                post: post ? {
+                    id: post._id.toString(),
+                    content: post.content,
+                    mood: post.mood
+                } : null
+            };
+        });
+
+        res.json({ comments: result });
+    } catch (error) {
+        console.error('Get my comments error:', error);
         res.status(500).json({ message: '服务器错误' });
     }
 });

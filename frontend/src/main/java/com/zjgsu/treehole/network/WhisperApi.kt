@@ -55,47 +55,52 @@ data class StartChatResponse(
 )
 
 interface WhisperApi {
-    // Get all chat rooms
+    // ===== Chat Rooms CRUD =====
     @GET("api/whisper/rooms")
     suspend fun getChatRooms(): Response<ChatRoomsResponse>
 
-    // Get chat history
+    @DELETE("api/whisper/rooms/{roomId}")
+    suspend fun deleteChatRoom(@Path("roomId") roomId: String): Response<MessageResponse>
+
+    // ===== Chat Messages =====
     @GET("api/whisper/history/{roomId}")
     suspend fun getChatHistory(
         @Path("roomId") roomId: String,
         @Query("limit") limit: Int = 50
     ): Response<ChatHistoryResponse>
 
-    // Send message
     @POST("api/whisper/message/{roomId}")
     suspend fun sendMessage(
         @Path("roomId") roomId: String,
         @Body request: SendMessageRequest
     ): Response<SendMessageResponse>
 
-    // Follow/unfollow user
+    @PUT("api/whisper/message/{messageId}")
+    suspend fun updateMessage(
+        @Path("messageId") messageId: String,
+        @Body request: SendMessageRequest
+    ): Response<SendMessageResponse>
+
+    @DELETE("api/whisper/message/{messageId}")
+    suspend fun deleteMessage(@Path("messageId") messageId: String): Response<MessageResponse>
+
+    // ===== Follow Management =====
     @POST("api/whisper/follow/{userId}")
-    suspend fun followUser(
-        @Path("userId") userId: String
-    ): Response<FollowResponse>
+    suspend fun followUser(@Path("userId") userId: String): Response<FollowResponse>
 
-    // Get user info
+    @DELETE("api/whisper/follow/{userId}")
+    suspend fun unfollowUser(@Path("userId") userId: String): Response<FollowResponse>
+
+    // ===== User Info =====
     @GET("api/whisper/user/{userId}")
-    suspend fun getUserInfo(
-        @Path("userId") userId: String
-    ): Response<UserInfoResponse>
+    suspend fun getUserInfo(@Path("userId") userId: String): Response<UserInfoResponse>
 
-    // Start chat with user
+    // ===== Chat Actions =====
     @POST("api/whisper/start/{userId}")
-    suspend fun startChat(
-        @Path("userId") userId: String
-    ): Response<StartChatResponse>
+    suspend fun startChat(@Path("userId") userId: String): Response<StartChatResponse>
 
-    // Mark messages as read
     @POST("api/whisper/read/{roomId}")
-    suspend fun markAsRead(
-        @Path("roomId") roomId: String
-    ): Response<Unit>
+    suspend fun markAsRead(@Path("roomId") roomId: String): Response<Unit>
 }
 
 data class SendMessageRequest(val content: String)

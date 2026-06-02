@@ -156,4 +156,18 @@
         <item name="android:elevation">8dp</item>
     </style>
 
+    <!-- Sidebar Dialog style with animations -->
+    <style name="SidebarDialog" parent="Theme.Material3.Light.NoActionBar">
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@style/SidebarAnimations</item>
+    </style>
+
+    <style name="SidebarAnimations">
+        <item name="android:windowEnterAnimation">@anim/slide_in_left</item>
+        <item name="android:windowExitAnimation">@anim/slide_out_left</item>
+    </style>
+
 </resources>

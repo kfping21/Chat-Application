@@ -43,6 +43,8 @@
     <string name="stat_echoes">我收集的回响</string>
     <string name="stat_souls">遇见的灵魂</string>
     <string name="my_secrets">我的秘密</string>
+    <string name="my_liked">我点赞的</string>
+    <string name="my_comments">我的评论</string>
     <string name="menu_privacy">隐私保护</string>
     <string name="menu_theme">主题选择</string>
     <string name="menu_settings">设置</string>

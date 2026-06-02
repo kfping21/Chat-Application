@@ -58,6 +58,13 @@
         <action
             android:id="@+id/action_my_hollow_to_follow_list"
             app:destination="@id/followListFragment" />
+        <action
+            android:id="@+id/action_my_hollow_to_sidebar"
+            app:destination="@id/sidebarFragment"
+            app:enterAnim="@anim/slide_in_left"
+            app:exitAnim="@anim/slide_out_right"
+            app:popEnterAnim="@anim/slide_in_right"
+            app:popExitAnim="@anim/slide_out_left" />
     </fragment>
 
     <fragment
@@ -211,8 +218,24 @@
             app:destination="@id/userProfileFragment" />
     </fragment>
 
+    <fragment
+        android:id="@+id/sidebarFragment"
+        android:name="com.zjgsu.treehole.ui.SidebarFragment"
+        android:label="侧边栏"
+        tools:layout="@layout/layout_sidebar">
+        <action
+            android:id="@+id/action_sidebar_to_login"
+            app:destination="@id/loginFragment"
+            app:popUpTo="@id/nav_my_hollow"
+            app:popUpToInclusive="false" />
+    </fragment>
+
     <action
         android:id="@+id/action_global_user_profile"
         app:destination="@id/userProfileFragment" />
+
+    <action
+        android:id="@+id/action_global_follow_list"
+        app:destination="@id/followListFragment" />
 
 </navigation>

@@ -65,3 +65,12 @@ data class MoodItem(
     val colorStart: String,
     val colorEnd: String
 )
+
+data class MyComment(
+    val id: String,
+    val content: String,
+    val timeAgo: String,
+    val postId: String,
+    val postContent: String,
+    val mood: String
+)

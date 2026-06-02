@@ -78,6 +78,11 @@ data class FollowUserDto(
     val isFollowing: Boolean
 )
 
+data class ChangePasswordRequest(
+    val oldPassword: String,
+    val newPassword: String
+)
+
 data class FollowListResponse(
     val users: List<FollowUserDto>
 )
@@ -118,4 +123,7 @@ interface AuthApi {
 
     @GET("api/user/{id}/followers")
     suspend fun getFollowers(@Path("id") userId: String): Response<FollowListResponse>
+
+    @POST("api/auth/change-password")
+    suspend fun changePassword(@Body request: ChangePasswordRequest): Response<AuthResponse>
 }
