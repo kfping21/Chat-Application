@@ -10,33 +10,28 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
-import com.zjgsu.treehole.ui.ClickAnimations
+import com.zjgsu.treehole.network.TokenManager
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var navController: NavController
-
-    // Custom tab views
     private lateinit var tabFeed: LinearLayout
     private lateinit var tabExplore: LinearLayout
     private lateinit var tabEchoes: LinearLayout
     private lateinit var tabMy: LinearLayout
-
     private lateinit var tabFeedIcon: ImageView
     private lateinit var tabExploreIcon: ImageView
     private lateinit var tabEchoesIcon: ImageView
     private lateinit var tabMyIcon: ImageView
-
     private lateinit var tabFeedLabel: TextView
     private lateinit var tabExploreLabel: TextView
     private lateinit var tabEchoesLabel: TextView
     private lateinit var tabMyLabel: TextView
-
     private lateinit var bottomNavContainer: View
-    private lateinit var fabPostWrapper: View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        TokenManager.init(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
 
@@ -46,7 +41,6 @@ class MainActivity : AppCompatActivity() {
 
         // Find custom tab views
         bottomNavContainer = findViewById(R.id.bottom_nav_container)
-        fabPostWrapper = findViewById(R.id.fab_post_wrapper)
 
         tabFeed = findViewById(R.id.tab_feed)
         tabExplore = findViewById(R.id.tab_explore)
@@ -72,20 +66,28 @@ class MainActivity : AppCompatActivity() {
         // Set initial selected state
         updateTabSelection(R.id.nav_feed)
 
-        // Wire the custom central Floating Action Button
+        // Check if user is already logged in, skip to feed
+        if (TokenManager.isLoggedIn()) {
+            window.decorView.post {
+                navController.navigate(R.id.nav_feed, null,
+                    androidx.navigation.NavOptions.Builder()
+                        .setPopUpTo(R.id.loginFragment, true)
+                        .setLaunchSingleTop(true)
+                        .build()
+                )
+            }
+        }
+
+        // Wire the central FAB
         val fabPost = findViewById<View>(R.id.fab_post)
-
-        // Add FAB press animation
-        ClickAnimations.addFabPressAnimation(fabPost)
-
         fabPost.setOnClickListener {
             navController.navigate(R.id.nav_post)
         }
 
-        // Listen for destination changes to update tab highlights & visibility
+        // Listen for destination changes
         navController.addOnDestinationChangedListener { _, destination, _ ->
             when (destination.id) {
-                R.id.secretDetailFragment, R.id.whisperChatFragment, R.id.nav_post,
+                R.id.secretDetailFragment, R.id.whisperChatFragment, R.id.partyChatFragment, R.id.nav_post,
                 R.id.loginFragment -> {
                     bottomNavContainer.visibility = View.GONE
                 }
@@ -95,21 +97,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-
-        // ── API 联调测试 (暂时禁用，等待后端接入) ──
-        // lifecycleScope.launch {
-        //     try {
-        //         val response = RetrofitClient.postsApi.getFeed()
-        //         if (response.isSuccessful) {
-        //             val data = response.body().toString()
-        //             Log.d("API_TEST", "✅ 请求成功！拿到的树洞数据是: $data")
-        //         } else {
-        //             Log.e("API_TEST", "❌ 请求失败，状态码: ${response.code()}")
-        //         }
-        //     } catch (e: Exception) {
-        //         Log.e("API_TEST", "❌ 网络异常: ${e.message}")
-        //     }
-        // }
     }
 
     private fun navigateToTab(destinationId: Int) {

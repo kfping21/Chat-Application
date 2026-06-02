@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    id("jacoco")
 }
 
 android {
@@ -56,9 +55,16 @@ dependencies {
     // CoordinatorLayout
     implementation("androidx.coordinatorlayout:coordinatorlayout:1.2.0")
 
+    // SwipeRefreshLayout
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+
     // Retrofit + Gson
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // OkHttp for DeepSeek API
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
@@ -70,46 +76,4 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-}
-
-jacoco {
-    toolVersion = "0.8.11"
-}
-
-tasks.withType<Test> {
-    configure<JacocoTaskExtension> {
-        isIncludeNoLocationClasses = true
-    }
-}
-
-tasks.register<JacocoReport>("jacocoTestReport") {
-    dependsOn("testDebugUnitTest")
-
-    reports {
-        html.required.set(true)
-        xml.required.set(true)
-        csv.required.set(false)
-    }
-
-    val fileFilter = listOf(
-        "**/R.class",
-        "**/R$*.class",
-        "**/BuildConfig.class",
-        "**/Manifest*.*",
-        "**/*Test*.*",
-        "**/com/google/**",
-        "**/androidx/**",
-        "**/kotlin/**"
-    )
-
-    val debugTree = fileTree("${buildDir}/intermediates/javac/debug/classes") {
-        exclude(fileFilter)
-    }
-    val kotlinDebugTree = fileTree("${buildDir}/tmp/kotlin-classes/debug") {
-        exclude(fileFilter)
-    }
-
-    sourceDirectories.setFrom(files("$projectDir/src/main/java", "$projectDir/src/main/kotlin"))
-    classDirectories.setFrom(files(debugTree, kotlinDebugTree))
-    executionData.setFrom(fileTree(buildDir) { include("**/*.exec") })
 }

@@ -1,6 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme -->
-    <style name="Base.Theme.TreeHole" parent="Theme.Material3.Dark.NoActionBar">
+    <style name="Base.Theme.TreeHole" parent="Theme.Material3.Light.NoActionBar">
         <item name="colorPrimary">@color/gold_primary</item>
         <item name="colorPrimaryVariant">@color/gold_secondary</item>
         <item name="colorOnPrimary">@color/bg_deep</item>
@@ -14,7 +14,7 @@
         <item name="colorError">@color/unread_badge</item>
         <item name="android:statusBarColor">@color/bg_deep</item>
         <item name="android:navigationBarColor">@color/bg_deep</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="23">false</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="23">true</item>
         <item name="android:fontFamily">sans-serif</item>
     </style>
 
@@ -95,7 +95,7 @@
     </style>
 
     <!-- Slide-up animation for bottom sheet -->
-    <style name="TreeHole.BottomSheetDialog" parent="Theme.Material3.Dark.BottomSheetDialog">
+    <style name="TreeHole.BottomSheetDialog" parent="Theme.Material3.DayNight.BottomSheetDialog">
         <item name="colorSurface">@color/bg_card</item>
         <item name="bottomSheetStyle">@style/Widget.TreeHole.BottomSheet</item>
     </style>

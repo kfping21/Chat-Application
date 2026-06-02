@@ -2,46 +2,36 @@ package com.zjgsu.treehole.ui
 
 import android.animation.ValueAnimator
 import android.content.Context
-import android.graphics.*
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RadialGradient
+import android.graphics.Shader
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.LinearInterpolator
-import androidx.core.content.ContextCompat
-import com.zjgsu.treehole.R
-import kotlin.math.*
-import kotlin.random.Random
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
+import kotlin.math.sin
+import kotlin.math.sqrt
 
-data class Orb(
-    var cx: Float,
-    var cy: Float,
-    val radius: Float,
-    val ringColor: Int,
-    val glowColor: Int,
-    val phase: Float,
-    val speedX: Float,
-    val speedY: Float,
-    val pulsePhase: Float = Random.nextFloat() * PI.toFloat() * 2f
+data class SphereSoul(
+    val id: String,
+    val nickname: String,
+    val mood: String
 )
 
-data class StarParticle(
+private data class ProjectedNode(
+    val index: Int,
     val x: Float,
     val y: Float,
-    val size: Float,
-    val alpha: Float,
-    val twinkleSpeed: Float,
-    val phase: Float
-)
-
-data class ShootingStar(
-    var x: Float,
-    var y: Float,
-    var speedX: Float,
-    var speedY: Float,
-    var length: Float,
-    var alpha: Float,
-    var active: Boolean = false,
-    val tailColor: Int
+    val radius: Float,
+    val z: Float,
+    val color: Int
 )
 
 class StarrySkyView @JvmOverloads constructor(
@@ -49,134 +39,81 @@ class StarrySkyView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
-
     private val density = context.resources.displayMetrics.density
-    private var onOrbClickListener: ((Int) -> Unit)? = null
-
-    // Enhanced orbs - more variety and positions
-    private val orbs = listOf(
-        Orb(0.20f, 0.12f, 22f, 0xFF60A5FA.toInt(), 0x2060A5FA, 0f, 0.4f, 0.6f),
-        Orb(0.75f, 0.08f, 24f, 0xFFFBBF24.toInt(), 0x20FBBF24, 1.2f, -0.5f, 0.4f),
-        Orb(0.55f, 0.22f, 20f, 0xFF34D399.toInt(), 0x2034D399, 2.5f, 0.3f, -0.5f),
-        Orb(0.12f, 0.45f, 22f, 0xFFF472B6.toInt(), 0x20F472B6, 0.8f, -0.4f, 0.45f),
-        Orb(0.85f, 0.40f, 24f, 0xFFA78BFA.toInt(), 0x20A78BFA, 3.1f, 0.45f, -0.35f),
-        Orb(0.35f, 0.65f, 22f, 0xFF8B5CF6.toInt(), 0x208B5CF6, 1.7f, -0.3f, 0.55f),
-        Orb(0.68f, 0.72f, 20f, 0xFFFBBF24.toInt(), 0x20FBBF24, 4.0f, 0.35f, -0.45f),
-        Orb(0.45f, 0.85f, 22f, 0xFFEC4899.toInt(), 0x20EC4899, 2.0f, 0.25f, 0.4f),
-        Orb(0.88f, 0.58f, 18f, 0xFF34D399.toInt(), 0x2034D399, 3.5f, -0.35f, 0.3f)
+    private val palette = intArrayOf(
+        0xFFA5F3FC.toInt(), 0xFFBFDBFE.toInt(), 0xFFFBCFE8.toInt(),
+        0xFFC4B5FD.toInt(), 0xFF86EFAC.toInt(), 0xFFFDE68A.toInt()
+    )
+    // Fallback souls when no real users available
+    private val fallbackSouls = listOf(
+        SphereSoul("f1", "小新", "今晚有点失眠，想找个能聊得来的人。"),
+        SphereSoul("f2", "依彤", "白天很坚强，夜里还是会脆弱。"),
+        SphereSoul("f3", "秋刀鱼", "最近压力很大，想找个温柔的人说说话。"),
+        SphereSoul("f4", "可乐不加冰", "一个人久了，也会想被温柔回应。"),
+        SphereSoul("f5", "婉婉", "想认真认识一些有趣的灵魂。"),
+        SphereSoul("f6", "清颜", "有些话不想打扰朋友，只想安静倾诉。")
     )
 
-    // Stars - more visible and twinkling
-    private val stars = List(150) {
-        StarParticle(
-            x = Random.nextFloat(),
-            y = Random.nextFloat(),
-            size = Random.nextFloat() * 2.5f + 1f,
-            alpha = Random.nextFloat() * 0.5f + 0.3f,
-            twinkleSpeed = Random.nextFloat() * 2f + 0.5f,
-            phase = Random.nextFloat() * PI.toFloat() * 2f
-        )
-    }
+    private var souls: List<SphereSoul> = fallbackSouls
+    private var points: List<FloatArray> = buildFibonacciPoints(souls.size)
+    private var projectedNodes: List<ProjectedNode> = emptyList()
 
-    // Shooting stars - reduced frequency
-    private val shootingStars = List(2) {
-        ShootingStar(
-            x = Random.nextFloat(),
-            y = Random.nextFloat() * 0.3f,
-            speedX = Random.nextFloat() * 3f + 2f,
-            speedY = Random.nextFloat() * 2f + 1f,
-            length = Random.nextFloat() * 60f + 40f,
-            alpha = 0f,
-            tailColor = when (Random.nextInt(4)) {
-                0 -> 0xFFFFD700.toInt() // Gold
-                1 -> 0xFFFFFFFF.toInt() // White
-                2 -> 0xFF60A5FA.toInt() // Blue
-                else -> 0xFFFBBF24.toInt() // Yellow
-            }
-        )
-    }
+    private var rotateY = 0.22f
+    private var rotateX = -0.12f
+    private var autoRotateSpeed = 0.0026f
+    private var velocityY = 0f
+    private var velocityX = 0f
+    private var lastTouchX = 0f
+    private var lastTouchY = 0f
+    private var dragging = false
 
-    // Nebula clouds for background atmosphere - more visible
-    private val nebulae = List(3) {
-        Nebula(
-            x = Random.nextFloat(),
-            y = Random.nextFloat(),
-            radiusX = Random.nextFloat() * 200f + 100f,
-            radiusY = Random.nextFloat() * 150f + 80f,
-            color = when (Random.nextInt(4)) {
-                0 -> 0x2560A5FA
-                1 -> 0x25F472B6
-                2 -> 0x2534D399
-                else -> 0x25A78BFA
-            },
-            phase = Random.nextFloat() * PI.toFloat() * 2f,
-            speed = Random.nextFloat() * 0.3f + 0.1f
-        )
-    }
+    private var onOrbClickListener: ((Int, String) -> Unit)? = null
 
-    data class Nebula(
-        val x: Float,
-        val y: Float,
-        val radiusX: Float,
-        val radiusY: Float,
-        val color: Int,
-        val phase: Float,
-        val speed: Float
-    )
-
-    private val sparkleDrawable = ContextCompat.getDrawable(context, R.drawable.ic_sparkle)
-
-    // Paints
+    private val starPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+    private val spherePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 1.5f * density
+        strokeWidth = 1.0f * density
+        color = 0x45A7B5FF
     }
-
-    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 3f * density
-        maskFilter = BlurMaskFilter(8f * density, BlurMaskFilter.Blur.NORMAL)
-    }
-
-    private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-    }
-
-    private val outerGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-    }
-
-    private val starPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
+    private val nodePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    private val haloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
+        textSize = 11f * density
+        textAlign = Paint.Align.CENTER
     }
 
-    private val shootingStarPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 2f * density
-        strokeCap = Paint.Cap.ROUND
+    private val stars = List(120) { i ->
+        floatArrayOf(
+            ((i * 73) % 1000) / 1000f,
+            ((i * 211) % 1000) / 1000f,
+            ((i * 37) % 10) / 10f + 0.4f
+        )
     }
 
-    private val nebulaPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-    }
-
-    private var animProgress = 0f
-    private var lastShootingStarTime = 0L
-    private var orbPulseMap = mutableMapOf<Int, Float>() // For tap feedback
-
-    private val animator = ValueAnimator.ofFloat(0f, (2 * PI).toFloat()).apply {
-        duration = 8000L
+    private val animator = ValueAnimator.ofFloat(0f, 1f).apply {
+        duration = 16L
         repeatCount = ValueAnimator.INFINITE
         interpolator = LinearInterpolator()
-        addUpdateListener { anim ->
-            animProgress = anim.animatedValue as Float
+        addUpdateListener {
+            updateRotation()
             invalidate()
         }
     }
 
     init {
-        setLayerType(LAYER_TYPE_SOFTWARE, null)
+        isClickable = true
+    }
+
+    fun setOnOrbClickListener(listener: (Int, String) -> Unit) {
+        onOrbClickListener = listener
+    }
+
+    fun setSouls(list: List<SphereSoul>) {
+        souls = if (list.isEmpty()) fallbackSouls else list
+        points = buildFibonacciPoints(souls.size)
+        invalidate()
     }
 
     override fun onAttachedToWindow() {
@@ -189,206 +126,199 @@ class StarrySkyView @JvmOverloads constructor(
         super.onDetachedFromWindow()
     }
 
-    fun setOnOrbClickListener(listener: (Int) -> Unit) {
-        onOrbClickListener = listener
-    }
-
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (event.action == MotionEvent.ACTION_UP) {
-            val touchX = event.x
-            val touchY = event.y
-            orbs.forEachIndexed { index, orb ->
-                val ox = orb.cx * width + sin(animProgress + orb.phase) * orb.speedX * 15f * density
-                val oy = orb.cy * height + cos(animProgress + orb.phase) * orb.speedY * 15f * density
-                val r = orb.radius * density
-                val dist = sqrt((touchX - ox).pow(2) + (touchY - oy).pow(2))
-                if (dist <= r * 1.6f) {
-                    // Trigger pulse animation
-                    orbPulseMap[index] = 1f
-                    // Vibrate feedback
-                    performClick()
-                    onOrbClickListener?.invoke(index)
-                    return true
-                }
-            }
-        }
-        return true
-    }
-
     override fun performClick(): Boolean {
         super.performClick()
         return true
     }
 
-    private fun updateShootingStars() {
-        val currentTime = System.currentTimeMillis()
-        shootingStars.forEach { star ->
-            if (!star.active && currentTime - lastShootingStarTime > Random.nextLong(6000, 12000)) {
-                // Activate a shooting star
-                star.x = Random.nextFloat() * 0.5f
-                star.y = Random.nextFloat() * 0.2f
-                star.speedX = Random.nextFloat() * 4f + 3f
-                star.speedY = Random.nextFloat() * 3f + 2f
-                star.length = Random.nextFloat() * 80f + 50f
-                star.alpha = 1f
-                star.active = true
-                lastShootingStarTime = currentTime
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                dragging = true
+                lastTouchX = event.x
+                lastTouchY = event.y
+                velocityX = 0f
+                velocityY = 0f
+                return true
             }
-
-            if (star.active) {
-                star.x += star.speedX * density * 0.016f
-                star.y += star.speedY * density * 0.016f
-                star.alpha -= 0.008f
-
-                if (star.alpha <= 0f || star.x > 1.5f || star.y > 1.2f) {
-                    star.active = false
+            MotionEvent.ACTION_MOVE -> {
+                val dx = event.x - lastTouchX
+                val dy = event.y - lastTouchY
+                lastTouchX = event.x
+                lastTouchY = event.y
+                rotateY += dx * 0.006f
+                rotateX += dy * 0.0046f
+                rotateX = rotateX.coerceIn(-1.15f, 1.15f)
+                velocityY = dx * 0.00025f
+                velocityX = dy * 0.00018f
+                invalidate()
+                return true
+            }
+            MotionEvent.ACTION_UP -> {
+                dragging = false
+                val hit = findHitNode(event.x, event.y)
+                if (hit != null) {
+                    performClick()
+                    onOrbClickListener?.invoke(hit.index, souls[hit.index].mood)
+                    velocityX = 0f
+                    velocityY = 0f
                 }
+                return true
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                dragging = false
+                return true
             }
         }
+        return super.onTouchEvent(event)
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val w = width.toFloat()
         val h = height.toFloat()
+        val cx = w * 0.5f
+        val cy = h * 0.54f
+        val sphereR = min(w, h) * 0.38f
 
-        // Draw nebula clouds (background atmosphere)
-        nebulae.forEach { nebula ->
-            val nebulaX = nebula.x * w + sin(animProgress * nebula.speed + nebula.phase) * 20f * density
-            val nebulaY = nebula.y * h + cos(animProgress * nebula.speed + nebula.phase) * 15f * density
-            nebulaPaint.shader = RadialGradient(
-                nebulaX, nebulaY, nebula.radiusX * density,
-                intArrayOf(nebula.color, Color.TRANSPARENT),
-                floatArrayOf(0.1f, 1f),
-                Shader.TileMode.CLAMP
-            )
-            canvas.drawOval(
-                nebulaX - nebula.radiusX * density,
-                nebulaY - nebula.radiusY * density,
-                nebulaX + nebula.radiusX * density,
-                nebulaY + nebula.radiusY * density,
-                nebulaPaint
-            )
+        drawBackgroundStars(canvas, w, h)
+        drawSphere(canvas, cx, cy, sphereR)
+
+        val projected = projectNodes(cx, cy, sphereR).sortedBy { it.z }
+        projectedNodes = projected
+
+        projected.forEach { node ->
+            drawNode(canvas, node)
         }
-
-        // Draw shooting stars
-        updateShootingStars()
-        shootingStars.forEach { star ->
-            if (star.active && star.alpha > 0) {
-                val startX = star.x * w
-                val startY = star.y * h
-                val endX = startX - star.speedX * star.length * density * 0.1f
-                val endY = startY - star.speedY * star.length * density * 0.1f
-
-                shootingStarPaint.color = star.tailColor
-                shootingStarPaint.alpha = (star.alpha * 255).toInt().coerceIn(0, 255)
-                shootingStarPaint.strokeWidth = 2f * density
-
-                // Draw trail
-                canvas.drawLine(startX, startY, endX, endY, shootingStarPaint)
-
-                // Draw head glow
-                fillPaint.color = star.tailColor
-                fillPaint.alpha = (star.alpha * 200).toInt().coerceIn(0, 255)
-                canvas.drawCircle(startX, startY, 3f * density, fillPaint)
-            }
-        }
-
-        // Draw star particles with enhanced twinkle
-        stars.forEach { star ->
-            val twinkle = (sin(animProgress * star.twinkleSpeed + star.phase) + 1f) / 2f
-            val alpha = (star.alpha * (0.3f + twinkle * 0.7f) * 255).toInt().coerceIn(0, 255)
-            starPaint.alpha = alpha
-            val sx = star.x * w
-            val sy = star.y * h
-            val size = star.size * density
-            canvas.drawCircle(sx, sy, size / 2f, starPaint)
-        }
-
-        // Draw each orb with enhanced effects
-        orbs.forEachIndexed { index, orb ->
-            val floatX = sin(animProgress + orb.phase) * orb.speedX * 12f * density
-            val floatY = cos(animProgress + orb.phase) * orb.speedY * 12f * density
-            val cx = orb.cx * w + floatX
-            val cy = orb.cy * h + floatY
-
-            // Get pulse factor if this orb was tapped
-            val pulseFactor = orbPulseMap[index] ?: 0f
-            val r = orb.radius * density * (1f + pulseFactor * 0.3f)
-
-            // 1. Soft outer glow - subtle
-            outerGlowPaint.shader = RadialGradient(
-                cx, cy, r * 1.8f,
-                intArrayOf(orb.glowColor, Color.TRANSPARENT),
-                floatArrayOf(0.2f, 1f),
-                Shader.TileMode.CLAMP
-            )
-            canvas.drawCircle(cx, cy, r * 1.8f, outerGlowPaint)
-
-            // 2. Dark background
-            fillPaint.shader = null
-            fillPaint.color = 0xFF0D1117.toInt()
-            fillPaint.alpha = 120
-            canvas.drawCircle(cx, cy, r, fillPaint)
-
-            // 3. Blurred neon halo
-            glowPaint.color = orb.ringColor
-            glowPaint.alpha = 180
-            canvas.drawCircle(cx, cy, r, glowPaint)
-
-            // 4. Thin opaque ring
-            ringPaint.color = orb.ringColor
-            ringPaint.alpha = 240
-            canvas.drawCircle(cx, cy, r, ringPaint)
-
-            // 5. Sparkle vector
-            sparkleDrawable?.let { drawable ->
-                val size = (r * 0.85f).toInt()
-                val left = (cx - size / 2f).toInt()
-                val top = (cy - size / 2f).toInt()
-                val right = (cx + size / 2f).toInt()
-                val bottom = (cy + size / 2f).toInt()
-
-                drawable.setBounds(left, top, right, bottom)
-                val blendColor = blendColors(Color.WHITE, orb.ringColor, 0.4f)
-                drawable.setTint(blendColor)
-                drawable.draw(canvas)
-            }
-
-            // 6. Companion dots
-            fillPaint.color = blendColors(Color.WHITE, orb.ringColor, 0.6f)
-            fillPaint.alpha = 220
-            val dotDist = r * 0.42f
-            val dotSize = 1.2f * density
-
-            val diffs = arrayOf(
-                floatArrayOf(-1f, -1f),
-                floatArrayOf(1f, -1f),
-                floatArrayOf(-1f, 1f),
-                floatArrayOf(1f, 1f)
-            )
-            for (d in diffs) {
-                val offsetDist = dotDist * (0.85f + Random(orb.ringColor.toLong() + index).nextFloat() * 0.3f)
-                val dotX = cx + d[0] * offsetDist * 0.707f
-                val dotY = cy + d[1] * offsetDist * 0.707f
-                canvas.drawCircle(dotX, dotY, dotSize, fillPaint)
-            }
-
-            // Update pulse animation
-            if (pulseFactor > 0f) {
-                orbPulseMap[index] = pulseFactor - 0.05f
-                if (orbPulseMap[index]!! <= 0f) {
-                    orbPulseMap.remove(index)
-                }
+        projected.forEach { node ->
+            if (node.z > -0.08f) {
+                val soul = souls[node.index]
+                textPaint.alpha = (140 + ((node.z + 1f) * 55f)).toInt().coerceIn(100, 255)
+                canvas.drawText(soul.nickname, node.x, node.y - node.radius - 7f * density, textPaint)
             }
         }
     }
 
-    private fun blendColors(color1: Int, color2: Int, ratio: Float): Int {
-        val inverseRatio = 1f - ratio
-        val r = (Color.red(color1) * ratio + Color.red(color2) * inverseRatio).toInt()
-        val g = (Color.green(color1) * ratio + Color.green(color2) * inverseRatio).toInt()
-        val b = (Color.blue(color1) * ratio + Color.blue(color2) * inverseRatio).toInt()
+    private fun updateRotation() {
+        if (!dragging) {
+            rotateY += autoRotateSpeed + velocityY
+            rotateX += velocityX
+            rotateX = rotateX.coerceIn(-1.15f, 1.15f)
+            velocityY *= 0.95f
+            velocityX *= 0.92f
+            if (kotlin.math.abs(velocityY) < 0.00002f) velocityY = 0f
+            if (kotlin.math.abs(velocityX) < 0.00002f) velocityX = 0f
+        }
+    }
+
+    private fun buildFibonacciPoints(count: Int): List<FloatArray> {
+        if (count <= 0) return emptyList()
+        if (count == 1) return listOf(floatArrayOf(0f, 0f, 1f))
+        val goldenAngle = PI * (3 - sqrt(5.0))
+        return List(count) { i ->
+            val y = 1f - (2f * (i + 0.5f) / count.toFloat())
+            val radius = sqrt(max(0f, 1f - y * y))
+            val theta = (goldenAngle * i).toFloat()
+            val x = cos(theta) * radius
+            val z = sin(theta) * radius
+            floatArrayOf(x.toFloat(), y, z.toFloat())
+        }
+    }
+
+    private fun projectNodes(cx: Float, cy: Float, r: Float): List<ProjectedNode> {
+        val sinY = sin(rotateY)
+        val cosY = cos(rotateY)
+        val sinX = sin(rotateX)
+        val cosX = cos(rotateX)
+        val camera = 2.8f
+
+        return points.mapIndexed { index, p ->
+            val x = p[0]
+            val y = p[1]
+            val z = p[2]
+
+            val x1 = x * cosY + z * sinY
+            val z1 = -x * sinY + z * cosY
+            val y2 = y * cosX - z1 * sinX
+            val z2 = y * sinX + z1 * cosX
+
+            val perspective = camera / (camera - z2)
+            val px = cx + x1 * r * perspective
+            val py = cy + y2 * r * 0.78f * perspective
+            val scale = (0.55f + (z2 + 1f) * 0.45f).coerceIn(0.55f, 1.6f)
+            val size = (3.6f + scale * 3.4f) * density
+            val color = palette[kotlin.math.abs(souls[index].id.hashCode()) % palette.size]
+            ProjectedNode(index, px.toFloat(), py.toFloat(), size.toFloat(), z2.toFloat(), color)
+        }
+    }
+
+    private fun drawBackgroundStars(canvas: Canvas, w: Float, h: Float) {
+        stars.forEachIndexed { i, s ->
+            val tw = (sin((rotateY * 8f) + i * 0.31f) + 1f) * 0.5f
+            starPaint.alpha = (50 + tw * 145).toInt().coerceIn(40, 200)
+            canvas.drawCircle(s[0] * w, s[1] * h, s[2] * density * 0.45f, starPaint)
+        }
+    }
+
+    private fun drawSphere(canvas: Canvas, cx: Float, cy: Float, r: Float) {
+        spherePaint.shader = RadialGradient(
+            cx,
+            cy - r * 0.22f,
+            r * 1.2f,
+            intArrayOf(0x3C6EA8FF, 0x1C27418A, 0x00000000),
+            floatArrayOf(0f, 0.55f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawCircle(cx, cy, r * 1.1f, spherePaint)
+
+        canvas.drawOval(cx - r, cy - r * 0.76f, cx + r, cy + r * 0.76f, ringPaint)
+        for (i in 1..3) {
+            val ratio = i / 4f
+            val ry = r * (0.72f - ratio * 0.14f)
+            ringPaint.alpha = 24 + (3 - i) * 12
+            canvas.drawOval(cx - r * (1f - ratio * 0.12f), cy - ry, cx + r * (1f - ratio * 0.12f), cy + ry, ringPaint)
+        }
+        for (i in 1..3) {
+            val ratio = i / 4f
+            val rx = r * ratio
+            ringPaint.alpha = 20
+            canvas.drawOval(cx - rx, cy - r * 0.76f, cx + rx, cy + r * 0.76f, ringPaint)
+        }
+    }
+
+    private fun drawNode(canvas: Canvas, node: ProjectedNode) {
+        val haloR = node.radius * (1.9f + max(0f, node.z) * 0.4f)
+        haloPaint.shader = RadialGradient(
+            node.x, node.y, haloR,
+            intArrayOf((node.color and 0x00FFFFFF) or (0x55 shl 24), Color.TRANSPARENT),
+            floatArrayOf(0.1f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawCircle(node.x, node.y, haloR, haloPaint)
+
+        nodePaint.shader = null
+        nodePaint.color = node.color
+        nodePaint.alpha = (130 + (node.z + 1f) * 60).toInt().coerceIn(120, 255)
+        canvas.drawCircle(node.x, node.y, node.radius, nodePaint)
+
+        nodePaint.color = blendWithWhite(node.color, 0.62f)
+        nodePaint.alpha = 230
+        canvas.drawCircle(node.x, node.y, node.radius * 0.43f, nodePaint)
+    }
+
+    private fun findHitNode(x: Float, y: Float): ProjectedNode? {
+        return projectedNodes
+            .sortedByDescending { it.z }
+            .firstOrNull { node ->
+                val d = sqrt((x - node.x).pow(2) + (y - node.y).pow(2))
+                d <= node.radius * 1.9f
+            }
+    }
+
+    private fun blendWithWhite(color: Int, ratio: Float): Int {
+        val r = (Color.red(color) * (1f - ratio) + 255f * ratio).toInt().coerceIn(0, 255)
+        val g = (Color.green(color) * (1f - ratio) + 255f * ratio).toInt().coerceIn(0, 255)
+        val b = (Color.blue(color) * (1f - ratio) + 255f * ratio).toInt().coerceIn(0, 255)
         return Color.rgb(r, g, b)
     }
 }

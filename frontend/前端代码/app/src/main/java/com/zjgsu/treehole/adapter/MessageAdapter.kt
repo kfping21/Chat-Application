@@ -62,4 +62,9 @@ class MessageAdapter(private val messages: MutableList<ChatMessage>) :
         messages.add(message)
         notifyItemInserted(messages.size - 1)
     }
+
+    fun clearMessages() {
+        messages.clear()
+        notifyDataSetChanged()
+    }
 }

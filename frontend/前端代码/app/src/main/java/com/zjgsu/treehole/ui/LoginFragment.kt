@@ -11,9 +11,12 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.zjgsu.treehole.R
-import com.zjgsu.treehole.ui.ClickAnimations
+import com.zjgsu.treehole.cache.PostCacheManager
+import com.zjgsu.treehole.network.*
+import kotlinx.coroutines.launch
 
 class LoginFragment : Fragment() {
 
@@ -39,9 +42,7 @@ class LoginFragment : Fragment() {
         val etPassword = view.findViewById<EditText>(R.id.et_password)
         val etConfirmPassword = view.findViewById<EditText>(R.id.et_confirm_password)
 
-        // Add button animations
-        ClickAnimations.addButtonPressAnimation(btnSubmit)
-        ClickAnimations.addButtonPressAnimation(tvToggleAction)
+        // Button animations removed for stability
 
         // Toggle between login and register mode
         fun updateUI() {
@@ -92,25 +93,137 @@ class LoginFragment : Fragment() {
                 }
             }
 
-            // Simulate login/register
+            // Disable button and show loading
             btnSubmit.isEnabled = false
             btnSubmit.text = if (isLoginMode) "登录中..." else "注册中..."
 
-            btnSubmit.postDelayed({
-                if (isLoginMode) {
-                    Toast.makeText(requireContext(), "登录成功 ✨", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(requireContext(), "注册成功 ✨", Toast.LENGTH_SHORT).show()
-                }
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    val response = if (isLoginMode) {
+                        RetrofitClient.authApi.login(LoginRequest(username, password))
+                    } else {
+                        RetrofitClient.authApi.register(RegisterRequest(username, password))
+                    }
 
-                // Navigate to main app (feed)
-                findNavController().navigate(R.id.nav_feed)
-            }, 1000)
+                    if (response.isSuccessful) {
+                        val body = response.body()!!
+                        // Save token and user info
+                        val token = body.token ?: return@launch
+                        val user = body.user ?: return@launch
+                        PostCacheManager.clearCache()
+                        TokenManager.saveToken(token)
+                        TokenManager.saveUser(
+                            user.id,
+                            user.username,
+                            user.nickname,
+                            user.avatar
+                        )
+
+                        Toast.makeText(
+                            requireContext(),
+                            if (isLoginMode) "登录成功 ✨" else "注册成功 ✨",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        // Check if first login (both nickname and avatar must be set to skip setup)
+                        val isFirstLogin = user.nickname.isNullOrEmpty() && user.avatar.isNullOrEmpty()
+
+                        if (isFirstLogin) {
+                            // Navigate to setup profile
+                            findNavController().navigate(R.id.action_login_to_setup_profile)
+                        } else {
+                            // Navigate to main app (feed)
+                            findNavController().navigate(R.id.nav_feed, null,
+                                androidx.navigation.NavOptions.Builder()
+                                    .setPopUpTo(R.id.loginFragment, true)
+                                    .setLaunchSingleTop(true)
+                                    .build()
+                            )
+                        }
+                    } else {
+                        val errorBody = response.errorBody()?.string()
+                        val authResponse = try {
+                            com.google.gson.Gson().fromJson(errorBody, AuthResponse::class.java)
+                        } catch (e: Exception) {
+                            null
+                        }
+                        val message = authResponse?.message ?: when (response.code()) {
+                            409 -> "账号在其他设备登录中，请先退出后重试"
+                            else -> "请求失败"
+                        }
+
+                        // If force login is available, show dialog to user
+                        if (response.code() == 409 && authResponse?.forceLoginAvailable == true) {
+                            showForceLoginDialog(username, password, message)
+                        } else {
+                            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(requireContext(), "网络异常: ${e.message}", Toast.LENGTH_SHORT).show()
+                } finally {
+                    btnSubmit.isEnabled = true
+                    btnSubmit.text = if (isLoginMode) "登录" else "注册"
+                }
+            }
         }
 
         // Forgot password
         tvForgotPassword.setOnClickListener {
             Toast.makeText(requireContext(), "请联系客服找回密码", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showForceLoginDialog(username: String, password: String, originalMessage: String) {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("提示")
+            .setMessage("$originalMessage\n\n是否强制登录？（将踢掉其他设备的登录）")
+            .setPositiveButton("强制登录") { _, _ ->
+                doForceLogin(username, password)
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun doForceLogin(username: String, password: String) {
+        val btnSubmit = view?.findViewById<Button>(R.id.btn_submit)
+        btnSubmit?.isEnabled = false
+        btnSubmit?.text = "登录中..."
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.authApi.login(LoginRequest(username, password, forceLogin = true))
+
+                if (response.isSuccessful) {
+                    val body = response.body()!!
+                    val token = body.token ?: return@launch
+                    val user = body.user ?: return@launch
+                    PostCacheManager.clearCache()
+                    TokenManager.saveToken(token)
+                    TokenManager.saveUser(
+                        user.id,
+                        user.username,
+                        user.nickname,
+                        user.avatar
+                    )
+
+                    Toast.makeText(requireContext(), "强制登录成功", Toast.LENGTH_SHORT).show()
+
+                    findNavController().navigate(R.id.nav_feed, null,
+                        androidx.navigation.NavOptions.Builder()
+                            .setPopUpTo(R.id.loginFragment, true)
+                            .setLaunchSingleTop(true)
+                            .build()
+                    )
+                } else {
+                    Toast.makeText(requireContext(), "强制登录失败", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "网络异常: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                btnSubmit?.isEnabled = true
+                btnSubmit?.text = "登录"
+            }
         }
     }
 }

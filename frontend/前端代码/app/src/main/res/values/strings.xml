@@ -21,13 +21,13 @@
     <!-- Feed -->
     <string name="hint_search">搜索话题标签...</string>
     <string name="label_hot_topics">热门话题</string>
-    <string name="hint_explore_orbs">点击光点，与陌生的灵魂开始对话</string>
-    <string name="hint_explore_sub">每个光点都是一个正在倾诉的故事</string>
+    <string name="hint_explore_orbs">点击球体中的灵魂点，寻找同频的人</string>
+    <string name="hint_explore_sub">每个光点后面，都有一个想被听见的故事</string>
     <string name="no_results">未找到相关话题</string>
     <string name="clear_search">清空搜索</string>
 
     <!-- Echoes -->
-    <string name="tab_comments">评论</string>
+    <string name="tab_comments">赞和评论</string>
     <string name="tab_messages">私聊</string>
 
     <!-- My Hollow -->
@@ -66,6 +66,10 @@
     <string name="hint_message">说点什么...</string>
     <string name="e2e_encrypted">消息端到端加密</string>
     <string name="btn_record">语音</string>
+    <string name="ai_reply_title">灵感回复</string>
+    <string name="ai_toggle">灵感推荐</string>
+    <string name="ai_refresh">换一批</string>
+    <string name="ai_close">收起</string>
 
     <!-- Mood names -->
     <string name="mood_lonely">孤独</string>

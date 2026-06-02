@@ -11,64 +11,99 @@
     <!-- Toolbar -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="56dp"
         android:orientation="horizontal"
         android:background="@color/bg_deep"
         android:paddingStart="8dp"
         android:paddingEnd="16dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="12dp"
         android:gravity="center_vertical"
-        android:elevation="8dp">
+        android:elevation="4dp">
 
         <ImageButton
             android:id="@+id/btn_back_chat"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="@null"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_arrow_back"
+            android:scaleType="centerInside"
+            android:padding="12dp"
             app:tint="@color/text_muted"
             android:contentDescription="返回" />
 
-        <!-- Avatar -->
-        <ImageView
-            android:id="@+id/iv_chat_avatar"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_marginEnd="12dp"
-            android:background="@drawable/bg_avatar" />
+        <!-- Avatar with online indicator -->
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="12dp">
+
+            <ImageView
+                android:id="@+id/iv_chat_avatar"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:src="@drawable/ic_nav_my"
+                android:background="@drawable/bg_avatar_circle"
+                android:clipToOutline="true" />
+
+            <!-- Online status dot with border -->
+            <View
+                android:id="@+id/view_online_dot"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_gravity="bottom|end"
+                android:layout_margin="2dp"
+                android:background="@drawable/bg_online_dot"
+                android:visibility="gone" />
+        </FrameLayout>
 
         <!-- Name + status -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:gravity="center_vertical">
 
             <TextView
                 android:id="@+id/tv_chat_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="落叶的小号"
-                android:textSize="15sp"
+                android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary" />
 
-            <TextView
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/anonymous_online"
-                android:textSize="11sp"
-                android:textColor="@color/text_muted" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <View
+                    android:id="@+id/view_status_indicator"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:background="@drawable/bg_status_offline"
+                    android:layout_marginEnd="6dp" />
+
+                <TextView
+                    android:id="@+id/tv_chat_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="离线"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_muted" />
+            </LinearLayout>
         </LinearLayout>
 
         <!-- Right side icons (Timer/History) -->
         <ImageButton
             android:id="@+id/btn_self_destruct"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="@null"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_recent_history"
+            android:scaleType="centerInside"
+            android:padding="12dp"
             app:tint="@color/gold_primary"
             android:contentDescription="@string/self_destruct" />
     </LinearLayout>
@@ -81,60 +116,206 @@
         android:layout_weight="1"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="4dp"
         android:clipToPadding="false"
         android:scrollbars="none" />
 
+    <!-- AI reply helper -->
+    <LinearLayout
+        android:id="@+id/layout_ai_assistant"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="2dp"
+        android:background="@drawable/bg_ai_assistant_card"
+        android:orientation="vertical"
+        android:padding="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_sparkle"
+                app:tint="@color/ai_accent" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:text="@string/ai_reply_title"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btn_ai_refresh"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_ai_notice_chip"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="@string/ai_refresh"
+                android:textColor="@color/ai_accent"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/btn_ai_close"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="@null"
+                android:contentDescription="@string/ai_close"
+                android:padding="4dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                app:tint="@color/text_muted" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_ai_suggestion_primary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_ai_suggestion_primary"
+            android:clickable="true"
+            android:focusable="true"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tv_ai_suggestion_secondary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_ai_suggestion_primary"
+            android:clickable="true"
+            android:focusable="true"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <ProgressBar
+            android:id="@+id/progress_ai_loading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:indeterminateTint="@color/ai_accent"
+            android:visibility="visible" />
+    </LinearLayout>
+
     <!-- Input bar -->
     <LinearLayout
+        android:id="@+id/input_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/bg_deep"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingTop="10dp"
-        android:paddingBottom="16dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:gravity="bottom"
         android:orientation="vertical">
 
-        <FrameLayout
+        <!-- Message limit hint -->
+        <TextView
+            android:id="@+id/tv_limit_hint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"
+            android:padding="8dp"
+            android:background="@color/unread_badge"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            android:gravity="center"
+            android:visibility="gone" />
+
+        <!-- AI hint -->
+        <TextView
+            android:id="@+id/tv_ai_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="4dp"
+            android:text=""
+            android:textColor="@color/text_muted"
+            android:textSize="11sp"
+            android:visibility="gone" />
+
+        <!-- Input row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_input"
+            android:paddingStart="10dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="4dp"
             android:paddingBottom="4dp">
 
             <EditText
                 android:id="@+id/et_message"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_input"
-                android:paddingStart="20dp"
-                android:paddingEnd="56dp"
-                android:paddingTop="16dp"
-                android:paddingBottom="16dp"
+                android:layout_weight="1"
+                android:minHeight="36dp"
+                android:background="@null"
                 android:hint="@string/hint_message"
                 android:textColor="@color/text_primary"
                 android:textColorHint="@color/text_muted"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:singleLine="true"
-                android:inputType="text" />
+                android:inputType="text"
+                android:gravity="center_vertical" />
+
+            <ImageButton
+                android:id="@+id/btn_ai_toggle"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/ai_toggle"
+                android:padding="4dp"
+                android:src="@drawable/ic_sparkle"
+                app:tint="@color/ai_accent" />
 
             <ImageButton
                 android:id="@+id/btn_send_message"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_gravity="end|center_vertical"
-                android:layout_marginEnd="4dp"
-                android:background="@null"
-                android:src="@android:drawable/ic_menu_send"
-                app:tint="@color/text_muted"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/bg_fab_golden"
+                android:src="@drawable/ic_action_send"
+                app:tint="@color/white"
                 android:contentDescription="发送" />
-        </FrameLayout>
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="4dp"
             android:text="消息端到端加密"
             android:textSize="10sp"
             android:textColor="@color/text_hint" />

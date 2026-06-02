@@ -54,7 +54,7 @@
         android:layout_height="8dp"
         android:layout_marginStart="8dp"
         android:layout_marginTop="6dp"
-        android:background="@color/gold_primary"
+        android:background="@drawable/bg_unread_dot_gold"
         android:visibility="gone" />
 
 </LinearLayout>

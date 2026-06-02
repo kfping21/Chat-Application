@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/nav_feed">
+    app:startDestination="@id/loginFragment">
 
     <fragment
         android:id="@+id/nav_feed"
@@ -23,6 +23,9 @@
         <action
             android:id="@+id/action_explore_to_chat"
             app:destination="@id/whisperChatFragment" />
+        <action
+            android:id="@+id/action_explore_to_party_chat"
+            app:destination="@id/partyChatFragment" />
     </fragment>
 
     <fragment
@@ -52,6 +55,9 @@
         <action
             android:id="@+id/action_my_to_login"
             app:destination="@id/loginFragment" />
+        <action
+            android:id="@+id/action_my_hollow_to_follow_list"
+            app:destination="@id/followListFragment" />
     </fragment>
 
     <fragment
@@ -64,6 +70,23 @@
             app:destination="@id/nav_feed"
             app:popUpTo="@id/nav_my_hollow"
             app:popUpToInclusive="false" />
+        <action
+            android:id="@+id/action_login_to_setup_profile"
+            app:destination="@id/setupProfileFragment"
+            app:popUpTo="@id/loginFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/setupProfileFragment"
+        android:name="com.zjgsu.treehole.ui.SetupProfileFragment"
+        android:label="设置资料"
+        tools:layout="@layout/fragment_setup_profile">
+        <action
+            android:id="@+id/action_setup_to_feed"
+            app:destination="@id/nav_feed"
+            app:popUpTo="@id/loginFragment"
+            app:popUpToInclusive="true" />
     </fragment>
 
     <fragment
@@ -75,9 +98,48 @@
             android:name="secretId"
             app:argType="string"
             android:defaultValue="1" />
+        <argument
+            android:name="userId"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="nickname"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="avatar"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="content"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="mood"
+            app:argType="string"
+            android:defaultValue="平静" />
+        <argument
+            android:name="timeAgo"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="likes"
+            app:argType="integer"
+            android:defaultValue="0" />
+        <argument
+            android:name="comments"
+            app:argType="integer"
+            android:defaultValue="0" />
+        <argument
+            android:name="isLiked"
+            app:argType="boolean"
+            android:defaultValue="false" />
         <action
             android:id="@+id/action_detail_to_chat"
             app:destination="@id/whisperChatFragment" />
+        <action
+            android:id="@+id/action_detail_to_userProfile"
+            app:destination="@id/userProfileFragment" />
     </fragment>
 
     <fragment
@@ -90,5 +152,67 @@
             app:argType="string"
             android:defaultValue="1" />
     </fragment>
+
+    <fragment
+        android:id="@+id/userProfileFragment"
+        android:name="com.zjgsu.treehole.ui.UserProfileFragment"
+        android:label="他的空间"
+        tools:layout="@layout/fragment_user_profile">
+        <argument
+            android:name="userId"
+            app:argType="string" />
+        <argument
+            android:name="nickname"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="avatar"
+            app:argType="string"
+            android:defaultValue="" />
+        <action
+            android:id="@+id/action_userProfile_to_chat"
+            app:destination="@id/whisperChatFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/partyChatFragment"
+        android:name="com.zjgsu.treehole.ui.PartyChatFragment"
+        android:label="聊天室"
+        tools:layout="@layout/fragment_party_chat">
+        <argument
+            android:name="roomId"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="roomName"
+            app:argType="string"
+            android:defaultValue="聊天室" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/followListFragment"
+        android:name="com.zjgsu.treehole.ui.FollowListFragment"
+        android:label="关注列表"
+        tools:layout="@layout/fragment_follow_list">
+        <argument
+            android:name="userId"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="type"
+            app:argType="string"
+            android:defaultValue="following" />
+        <argument
+            android:name="title"
+            app:argType="string"
+            android:defaultValue="关注列表" />
+        <action
+            android:id="@+id/action_follow_list_to_userProfile"
+            app:destination="@id/userProfileFragment" />
+    </fragment>
+
+    <action
+        android:id="@+id/action_global_user_profile"
+        app:destination="@id/userProfileFragment" />
 
 </navigation>
