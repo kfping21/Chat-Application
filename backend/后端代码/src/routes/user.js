@@ -33,8 +33,11 @@ router.put('/profile', auth, upload.single('avatar'), async (req, res) => {
             const avatarUrl = `${baseUrl}/uploads/avatars/${path.basename(req.file.path)}`;
             updates.avatar = avatarUrl;
         }
-        // Allow preset avatars
-        else if (avatar && !avatar.startsWith('http') && avatar.startsWith('preset_')) {
+        // Allow preset avatars or external URLs
+        if (avatar && avatar.startsWith('preset_')) {
+            updates.avatar = avatar;
+        } else if (avatar && avatar.startsWith('http')) {
+            // Allow external avatar URLs (e.g., from dicebear)
             updates.avatar = avatar;
         }
 

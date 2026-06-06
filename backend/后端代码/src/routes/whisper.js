@@ -18,7 +18,8 @@ async function getOrCreateChatRoom(userId1, userId2) {
     if (!room) {
         room = new ChatRoom({
             participants: [userId1, userId2],
-            participantIds
+            participantIds,
+            lastMessageAt: new Date()  // Set creation time so new rooms sort to top
         });
         await room.save();
     }

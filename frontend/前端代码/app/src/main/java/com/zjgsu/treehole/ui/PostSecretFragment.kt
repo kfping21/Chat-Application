@@ -8,20 +8,17 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.speech.RecognizerIntent
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -32,15 +29,22 @@ import com.zjgsu.treehole.R
 import com.zjgsu.treehole.adapter.MoodAdapter
 import com.zjgsu.treehole.model.MoodItem
 import com.zjgsu.treehole.network.CreatePostRequest
+import com.zjgsu.treehole.network.DeepSeekApi
 import com.zjgsu.treehole.network.RetrofitClient
+import com.bumptech.glide.Glide
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.util.Locale
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class PostSecretFragment : Fragment() {
 
     private var selectedMood: MoodItem? = null
     private var isSubmitting = false
-    private var selectedImageUri: Uri? = null
+    private val selectedImageUris = mutableListOf<Uri>()
+    private var aiCall: okhttp3.Call? = null
 
     private val moods = listOf(
         MoodItem("孤独", "🌙", "#4C7BFE", "#673AB7"),
@@ -55,34 +59,12 @@ class PostSecretFragment : Fragment() {
 
     private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
-            selectedImageUri = it
-            val preview = view?.findViewById<ImageView>(R.id.iv_image_preview)
-            preview?.setImageURI(it)
-            preview?.isVisible = true
-        }
-    }
-
-    private val speechInputLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
-        val spokenText = result.data
-            ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            ?.firstOrNull()
-            ?.trim()
-            .orEmpty()
-        if (spokenText.isEmpty()) return@registerForActivityResult
-
-        val etContent = view?.findViewById<EditText>(R.id.et_content) ?: return@registerForActivityResult
-        val current = etContent.text?.toString().orEmpty()
-        val merged = if (current.isBlank()) spokenText else "$current $spokenText"
-        etContent.setText(merged.take(500))
-        etContent.setSelection(etContent.text.length)
-    }
-
-    private val requestAudioPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) {
-            openSpeechInput()
-        } else {
-            Toast.makeText(requireContext(), "需要麦克风权限才能语音输入", Toast.LENGTH_SHORT).show()
+            if (selectedImageUris.size < 2) {
+                selectedImageUris.add(it)
+                updateImagePreviews()
+            } else {
+                Toast.makeText(requireContext(), "最多只能添加 2 张图片哦", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -91,45 +73,150 @@ class PostSecretFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? = inflater.inflate(R.layout.fragment_post_secret, container, false)
 
+    private fun getBase64FromUri(uri: Uri): String? {
+        return try {
+            val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                android.graphics.ImageDecoder.decodeBitmap(android.graphics.ImageDecoder.createSource(requireContext().contentResolver, uri))
+            } else {
+                @Suppress("DEPRECATION")
+                android.provider.MediaStore.Images.Media.getBitmap(requireContext().contentResolver, uri)
+            }
+            
+            // Downscale to max 512px for extreme speed
+            val maxDim = 512f
+            val scale = Math.min(maxDim / bitmap.width, maxDim / bitmap.height)
+            val scaledBitmap = if (scale < 1f) {
+                android.graphics.Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt(), (bitmap.height * scale).toInt(), true)
+            } else bitmap
+            
+            val outputStream = java.io.ByteArrayOutputStream()
+            scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 70, outputStream)
+            android.util.Base64.encodeToString(outputStream.toByteArray(), android.util.Base64.NO_WRAP)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         val etContent = view.findViewById<EditText>(R.id.et_content)
         val tvCount = view.findViewById<TextView>(R.id.tv_char_count)
         val rvMoods = view.findViewById<RecyclerView>(R.id.rv_moods)
-        val btnSubmit = view.findViewById<Button>(R.id.btn_submit)
+        val btnSubmit = view.findViewById<View>(R.id.btn_submit)
         val btnClose = view.findViewById<View>(R.id.btn_close)
-        val btnAddImage = view.findViewById<ImageButton>(R.id.btn_add_image)
-        val btnVoice = view.findViewById<TextView>(R.id.btn_voice)
-        val ivPreview = view.findViewById<ImageView>(R.id.iv_image_preview)
+        val btnAddImage = view.findViewById<View>(R.id.btn_add_image)
+        val btnAi = view.findViewById<View>(R.id.btn_ai_inspiration)
+        val llAiDefault = view.findViewById<View>(R.id.ll_ai_default)
+        val llAiGenerating = view.findViewById<View>(R.id.ll_ai_generating)
+        val btnAiCancel = view.findViewById<View>(R.id.btn_ai_cancel)
+        val llAiGenerated = view.findViewById<View>(R.id.ll_ai_generated)
+        val btnAiOptimize = view.findViewById<View>(R.id.btn_ai_optimize)
+        val btnAiRevoke = view.findViewById<View>(R.id.btn_ai_revoke)
+        val btnAiRegenerate = view.findViewById<View>(R.id.btn_ai_regenerate)
+        val flPreview1 = view.findViewById<View>(R.id.fl_preview_1)
+        val flPreview2 = view.findViewById<View>(R.id.fl_preview_2)
+        val btnRemove1 = view.findViewById<View>(R.id.btn_remove_image_1)
+        val btnRemove2 = view.findViewById<View>(R.id.btn_remove_image_2)
 
         // Add button animations
         ClickAnimations.addButtonPressAnimation(btnSubmit)
         ClickAnimations.addButtonPressAnimation(btnClose)
         ClickAnimations.addButtonPressAnimation(btnAddImage)
-        ClickAnimations.addButtonPressAnimation(btnVoice)
+        ClickAnimations.addButtonPressAnimation(btnAi)
+        ClickAnimations.addButtonPressAnimation(btnAiCancel)
+        ClickAnimations.addButtonPressAnimation(btnAiOptimize)
+        ClickAnimations.addButtonPressAnimation(btnAiRevoke)
+        ClickAnimations.addButtonPressAnimation(btnAiRegenerate)
 
         // Close button: navigate back
         btnClose.setOnClickListener { findNavController().navigateUp() }
 
-        // Add image button (system picker, no storage permission needed)
+        // Add image button
         btnAddImage.setOnClickListener {
-            openImagePicker()
+            if (selectedImageUris.size >= 2) {
+                Toast.makeText(requireContext(), "最多只能添加 2 张图片哦", Toast.LENGTH_SHORT).show()
+            } else {
+                openImagePicker()
+            }
+        }
+        
+        btnAiCancel.setOnClickListener {
+            aiCall?.cancel()
+            llAiGenerating.visibility = View.GONE
+            llAiDefault.visibility = View.VISIBLE
         }
 
-        btnVoice.setOnClickListener {
-            if (hasRecordAudioPermission()) {
-                openSpeechInput()
-            } else {
-                requestAudioPermission.launch(Manifest.permission.RECORD_AUDIO)
+        btnAi.setOnClickListener {
+            if (selectedImageUris.isEmpty()) {
+                Toast.makeText(requireContext(), "请先上传一张照片让AI看看哦", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            
+            // Switch UI to generating state
+            llAiDefault.visibility = View.GONE
+            llAiGenerating.visibility = View.VISIBLE
+            
+            val base64 = getBase64FromUri(selectedImageUris[0])
+
+            aiCall = DeepSeekApi.generatePostInspiration(base64) { text, isError ->
+                activity?.runOnUiThread {
+                    if (isError) {
+                        Toast.makeText(requireContext(), text, Toast.LENGTH_SHORT).show()
+                        llAiGenerating.visibility = View.GONE
+                        llAiDefault.visibility = View.VISIBLE
+                    } else {
+                        llAiGenerating.visibility = View.GONE
+                        llAiGenerated.visibility = View.VISIBLE
+                        etContent.setText(text)
+                    }
+                }
+            }
+        }
+        
+        btnAiRevoke.setOnClickListener {
+            llAiGenerated.visibility = View.GONE
+            llAiDefault.visibility = View.VISIBLE
+            etContent.setText("")
+        }
+        
+        btnAiRegenerate.setOnClickListener {
+            llAiGenerated.visibility = View.GONE
+            llAiGenerating.visibility = View.VISIBLE
+            
+            val base64 = if (selectedImageUris.isNotEmpty()) getBase64FromUri(selectedImageUris[0]) else null
+            
+            aiCall = DeepSeekApi.generatePostInspiration(base64) { text, isError ->
+                activity?.runOnUiThread {
+                    if (isError) {
+                        Toast.makeText(requireContext(), text, Toast.LENGTH_SHORT).show()
+                        llAiGenerating.visibility = View.GONE
+                        llAiGenerated.visibility = View.VISIBLE
+                    } else {
+                        llAiGenerating.visibility = View.GONE
+                        llAiGenerated.visibility = View.VISIBLE
+                        etContent.setText(text)
+                    }
+                }
+            }
+        }
+        
+        btnAiOptimize.setOnClickListener {
+            Toast.makeText(requireContext(), "AI 优化Tips：试试多添加一些情感词汇会更动人哦～", Toast.LENGTH_SHORT).show()
+        }
+
+        btnRemove1.setOnClickListener {
+            if (selectedImageUris.size > 0) {
+                selectedImageUris.removeAt(0)
+                updateImagePreviews()
             }
         }
 
-        // Image preview click to remove
-        ivPreview.setOnClickListener {
-            selectedImageUri = null
-            ivPreview.isVisible = false
-            ivPreview.setImageURI(null)
+        btnRemove2.setOnClickListener {
+            if (selectedImageUris.size > 1) {
+                selectedImageUris.removeAt(1)
+                updateImagePreviews()
+            }
         }
 
         // Character counter
@@ -164,13 +251,27 @@ class PostSecretFragment : Fragment() {
 
             isSubmitting = true
             btnSubmit.isEnabled = false
-            btnSubmit.text = "埋下秘密中..."
+            if (btnSubmit is TextView) btnSubmit.text = "埋下秘密中..."
 
             viewLifecycleOwner.lifecycleScope.launch {
                 try {
-                    val response = RetrofitClient.postsApi.createPost(
-                        CreatePostRequest(content, selectedMood!!.name)
-                    )
+                    val contentBody = content.toRequestBody("text/plain".toMediaTypeOrNull())
+                    val moodBody = selectedMood!!.name.toRequestBody("text/plain".toMediaTypeOrNull())
+
+                    val imageParts = mutableListOf<MultipartBody.Part>()
+                    selectedImageUris.forEachIndexed { index, uri ->
+                        val bytes = withContext(Dispatchers.IO) {
+                            requireContext().contentResolver.openInputStream(uri)?.readBytes()
+                        }
+                        if (bytes != null) {
+                            val requestFile = okhttp3.RequestBody.create("image/*".toMediaTypeOrNull(), bytes)
+                            imageParts.add(MultipartBody.Part.createFormData("images", "image_$index.jpg", requestFile))
+                        }
+                    }
+
+                    val response = withContext(Dispatchers.IO) {
+                        RetrofitClient.postsApi.createPost(contentBody, moodBody, imageParts)
+                    }
                     if (response.isSuccessful) {
                         Toast.makeText(requireContext(), "秘密已埋下 ✨", Toast.LENGTH_SHORT).show()
                         findNavController().navigateUp()
@@ -178,13 +279,13 @@ class PostSecretFragment : Fragment() {
                         Toast.makeText(requireContext(), "发布失败", Toast.LENGTH_SHORT).show()
                         isSubmitting = false
                         btnSubmit.isEnabled = true
-                        btnSubmit.text = getString(R.string.btn_post)
+                        if (btnSubmit is TextView) btnSubmit.text = "发布"
                     }
                 } catch (e: Exception) {
                     Toast.makeText(requireContext(), "网络异常: ${e.message}", Toast.LENGTH_SHORT).show()
                     isSubmitting = false
                     btnSubmit.isEnabled = true
-                    btnSubmit.text = getString(R.string.btn_post)
+                    if (btnSubmit is TextView) btnSubmit.text = "发布"
                 }
             }
         }
@@ -194,26 +295,28 @@ class PostSecretFragment : Fragment() {
         pickImage.launch("image/*")
     }
 
-    private fun hasRecordAudioPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            requireContext(),
-            Manifest.permission.RECORD_AUDIO
-        ) == PackageManager.PERMISSION_GRANTED
-    }
+    private fun updateImagePreviews() {
+        val flPreview1 = view?.findViewById<View>(R.id.fl_preview_1)
+        val flPreview2 = view?.findViewById<View>(R.id.fl_preview_2)
+        val ivPreview1 = view?.findViewById<ImageView>(R.id.iv_image_preview_1)
+        val ivPreview2 = view?.findViewById<ImageView>(R.id.iv_image_preview_2)
 
-    private fun openSpeechInput() {
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "请说出你想发布的内容")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, false)
-            }
+        if (flPreview1 == null || flPreview2 == null || ivPreview1 == null || ivPreview2 == null) return
+
+        if (selectedImageUris.size > 0) {
+            flPreview1.isVisible = true
+            Glide.with(this).load(selectedImageUris[0]).centerCrop().into(ivPreview1)
+        } else {
+            flPreview1.isVisible = false
+            ivPreview1.setImageURI(null)
         }
-        try {
-            speechInputLauncher.launch(intent)
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(requireContext(), "当前设备不支持语音识别", Toast.LENGTH_SHORT).show()
+
+        if (selectedImageUris.size > 1) {
+            flPreview2.isVisible = true
+            Glide.with(this).load(selectedImageUris[1]).centerCrop().into(ivPreview2)
+        } else {
+            flPreview2.isVisible = false
+            ivPreview2.setImageURI(null)
         }
     }
 }

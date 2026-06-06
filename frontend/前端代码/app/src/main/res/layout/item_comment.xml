@@ -58,6 +58,18 @@
             android:textSize="11sp"
             android:textColor="@color/text_hint" />
 
+        <ImageButton
+            android:id="@+id/btn_comment_more"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_more_vertical"
+            android:scaleType="centerInside"
+            android:padding="4dp"
+            app:tint="@color/text_hint"
+            android:visibility="gone"
+            android:contentDescription="更多" />
+
         <!-- Like button -->
         <LinearLayout
             android:id="@+id/btn_comment_like"

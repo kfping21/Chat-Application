@@ -90,6 +90,9 @@ app.get('/api/online-users', (req, res) => {
     res.json({ onlineUsers: Array.from(onlineUsers.keys()) });
 });
 
+// Make io accessible to routes
+app.set('io', io);
+
 // Secret admin route to clear all data
 const Post = require('./models/Post');
 const Comment = require('./models/Comment');
@@ -322,6 +325,146 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Soul Match Queue: IP -> { userId, socketId, timestamp }
+    const soulMatchQueue = new Map();
+
+    socket.on('soul-match-request', async (data) => {
+        const userId = data.userId;
+        const ip = socket.handshake.address;
+        
+        // Clean up expired entries (e.g. 30 seconds)
+        const now = Date.now();
+        for (const [key, val] of soulMatchQueue.entries()) {
+            if (now - val.timestamp > 30000) {
+                soulMatchQueue.delete(key);
+            }
+        }
+
+        let matched = false;
+        console.log(`[SoulMatch] Request from ${userId} with IP ${ip}`);
+
+        // Find if anyone is waiting
+        for (const [waitingUserId, val] of soulMatchQueue.entries()) {
+            if (waitingUserId !== userId) {
+                // Match found!
+                console.log(`[SoulMatch] Found in queue: ${waitingUserId}`);
+                soulMatchQueue.delete(waitingUserId);
+                matched = true;
+                
+                try {
+                    // Create chat room
+                    const ChatRoom = require('./models/ChatRoom');
+                    const participantIds = [userId, waitingUserId].sort().join('_');
+                    let room = await ChatRoom.findOne({ participantIds });
+                    if (!room) {
+                        room = new ChatRoom({
+                            participants: [userId, waitingUserId],
+                            participantIds,
+                            lastMessageAt: new Date()
+                        });
+                        await room.save();
+                    }
+                    
+                    const User = require('./models/User');
+                    const user1 = await User.findById(userId).select('nickname avatar');
+                    const user2 = await User.findById(waitingUserId).select('nickname avatar');
+
+                    if (user1 && user2) {
+                        // Emit to caller
+                        socket.emit('soul-match-found', {
+                            roomId: room._id.toString(),
+                            participantId: user2._id.toString(),
+                            nickname: user2.nickname,
+                            avatar: user2.avatar
+                        });
+                        
+                        // Emit to waiting user
+                        io.to(val.socketId).emit('soul-match-found', {
+                            roomId: room._id.toString(),
+                            participantId: user1._id.toString(),
+                            nickname: user1.nickname,
+                            avatar: user1.avatar
+                        });
+                    }
+                } catch (e) {
+                    console.error('Soul match error:', e);
+                }
+                break;
+            }
+        }
+
+        // 2. If no one in queue, check if there is an ONLINE user on the SAME IP (same hotspot)
+        if (!matched) {
+            console.log(`[SoulMatch] No one in queue. Scanning ${onlineUsers.size} online users for IP ${ip}...`);
+            for (const [onlineUserId, onlineSocketId] of onlineUsers.entries()) {
+                if (onlineUserId !== userId) {
+                    const onlineSocket = io.sockets.sockets.get(onlineSocketId);
+                    if (onlineSocket) {
+                        console.log(`[SoulMatch] Checking user ${onlineUserId} with IP ${onlineSocket.handshake.address}`);
+                        // Match any other online user (acts as local test match)
+                        console.log(`[SoulMatch] Match found by online status: ${onlineUserId}`);
+                        matched = true;
+                            
+                            try {
+                                // Create chat room
+                                const ChatRoom = require('./models/ChatRoom');
+                                const participantIds = [userId, onlineUserId].sort().join('_');
+                                let room = await ChatRoom.findOne({ participantIds });
+                                if (!room) {
+                                    room = new ChatRoom({
+                                        participants: [userId, onlineUserId],
+                                        participantIds,
+                                        lastMessageAt: new Date()
+                                    });
+                                    await room.save();
+                                }
+                                
+                                const User = require('./models/User');
+                                const user1 = await User.findById(userId).select('nickname avatar');
+                                const user2 = await User.findById(onlineUserId).select('nickname avatar');
+    
+                                if (user1 && user2) {
+                                    // Emit to caller
+                                    socket.emit('soul-match-found', {
+                                        roomId: room._id.toString(),
+                                        participantId: user2._id.toString(),
+                                        nickname: user2.nickname,
+                                        avatar: user2.avatar
+                                    });
+                                    
+                                    // Emit to the other user who didn't even click!
+                                    io.to(onlineSocketId).emit('soul-match-found', {
+                                        roomId: room._id.toString(),
+                                        participantId: user1._id.toString(),
+                                        nickname: user1.nickname,
+                                        avatar: user1.avatar
+                                    });
+                                }
+                            } catch (e) {
+                                console.error('Soul match same-ip error:', e);
+                            }
+                            break;
+                    }
+                }
+            }
+        }
+
+        if (!matched) {
+            console.log(`[SoulMatch] No match found. Adding ${userId} to queue.`);
+            soulMatchQueue.set(userId, { ip, socketId: socket.id, timestamp: Date.now() });
+        }
+    });
+
+    socket.on('soul-match-cancel', (data) => {
+        // Find user by socket id just to be safe, or just iterate
+        for (const [waitingUserId, val] of soulMatchQueue.entries()) {
+            if (val.socketId === socket.id) {
+                soulMatchQueue.delete(waitingUserId);
+                break;
+            }
+        }
+    });
+
     socket.on('disconnect', async (reason) => {
         logger.info('socket_disconnect', { socketId: socket.id, reason, userId: socket.userId });
         if (socket.userId) {
@@ -363,5 +506,5 @@ server.listen(PORT, '0.0.0.0', async () => {
     await recreateDefaultUser();
     console.log(`🚀 服务器运行在 http://0.0.0.0:${PORT}`);
     console.log(`🔌 WebSocket 悄悄话服务已启用`);
-    console.log(`📱 手机访问: http://10.198.34.114:${PORT}`);
+    console.log(`📱 手机访问: http://10.17.27.114:${PORT}`);
 });

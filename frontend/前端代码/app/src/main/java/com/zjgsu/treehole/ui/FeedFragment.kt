@@ -145,7 +145,8 @@ class FeedFragment : Fragment() {
                                 avatar = post.user?.avatar ?: "",
                                 nickname = post.user?.nickname ?: "",
                                 isLiked = post.isLiked,
-                                userId = post.user?.id ?: ""
+                                userId = post.user?.id ?: "",
+                                imageUrls = post.imageUrls
                             )
                         }
 
@@ -196,7 +197,8 @@ class FeedFragment : Fragment() {
                                 avatar = post.user?.avatar ?: "",
                                 nickname = post.user?.nickname ?: "",
                                 isLiked = post.isLiked,
-                                userId = post.user?.id ?: ""
+                                userId = post.user?.id ?: "",
+                                imageUrls = post.imageUrls
                             )
                             secrets.add(secret)
                             adapter?.updateCounts(post.id, post.likes, post.commentCount)
@@ -258,7 +260,8 @@ class FeedFragment : Fragment() {
                                 avatar = post.user?.avatar ?: "",
                                 nickname = post.user?.nickname ?: "",
                                 isLiked = post.isLiked,
-                                userId = post.user?.id ?: ""
+                                userId = post.user?.id ?: "",
+                                imageUrls = post.imageUrls
                             )
                             secrets.add(secret)
                             adapter?.updateCounts(post.id, post.likes, post.commentCount)

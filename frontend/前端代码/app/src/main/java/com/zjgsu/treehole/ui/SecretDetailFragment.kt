@@ -1,5 +1,6 @@
 package com.zjgsu.treehole.ui
 
+import android.app.AlertDialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -44,10 +45,12 @@ class SecretDetailFragment : Fragment() {
     private var passedContent = ""
     private var passedMood = ""
     private var passedTimeAgo = ""
+    private var passedImageUrls: Array<String> = emptyArray()
     private var passedLikes = 0
     private var passedComments = 0
     private var passedIsLiked = false
-    private var passedUserId = "" // Author's user ID for starting chat
+    private var passedUserId = ""
+    private var currentUserId: String = ""
 
     private lateinit var btnLike: LinearLayout
     private lateinit var ivLikeIcon: ImageView
@@ -62,14 +65,15 @@ class SecretDetailFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         postId = arguments?.getString("secretId") ?: ""
+        currentUserId = TokenManager.getUserId() ?: ""
 
-        // Get data passed from feed
         passedUserId = arguments?.getString("userId") ?: ""
         passedNickname = arguments?.getString("nickname") ?: ""
         passedAvatar = arguments?.getString("avatar") ?: ""
         passedContent = arguments?.getString("content") ?: ""
         passedMood = arguments?.getString("mood") ?: "平静"
         passedTimeAgo = arguments?.getString("timeAgo") ?: ""
+        passedImageUrls = arguments?.getStringArray("imageUrls") ?: emptyArray()
         passedLikes = arguments?.getInt("likes") ?: 0
         passedComments = arguments?.getInt("comments") ?: 0
         passedIsLiked = arguments?.getBoolean("isLiked") ?: false
@@ -86,12 +90,18 @@ class SecretDetailFragment : Fragment() {
         val btnShare = view.findViewById<ImageButton>(R.id.btn_share_detail)
         val etComment = view.findViewById<EditText>(R.id.et_comment)
         val btnSend = view.findViewById<ImageButton>(R.id.btn_send_comment)
+        val btnMore = view.findViewById<ImageButton>(R.id.btn_more_detail)
 
         try {
             ClickAnimations.addButtonPressAnimation(btnLike)
             ClickAnimations.addButtonPressAnimation(btnBack)
             ClickAnimations.addButtonPressAnimation(btnShare)
+            ClickAnimations.addButtonPressAnimation(btnMore)
         } catch (e: Exception) { /* Ignore animation errors */ }
+
+        btnMore.setOnClickListener {
+            showPostOptions()
+        }
 
         // Avatar click - navigate to user profile
         ivDetailAvatar.setOnClickListener {
@@ -150,17 +160,182 @@ class SecretDetailFragment : Fragment() {
             val ivAvatar = findViewById<ImageView>(R.id.iv_detail_avatar)
             AvatarLoader.loadAvatar(requireContext(), passedAvatar, ivAvatar)
 
+            val llImages = findViewById<View>(R.id.ll_detail_images)
+            val ivImage1 = findViewById<ImageView>(R.id.iv_detail_image_1)
+            val ivImage2 = findViewById<ImageView>(R.id.iv_detail_image_2)
+
+            if (passedImageUrls.isNotEmpty()) {
+                llImages.visibility = View.VISIBLE
+                
+                ivImage1.visibility = View.VISIBLE
+                com.bumptech.glide.Glide.with(requireContext())
+                    .load(passedImageUrls[0])
+                    .into(ivImage1)
+
+                ivImage1.setOnClickListener {
+                    FullScreenImageDialog.show(requireContext(), passedImageUrls[0])
+                }
+
+                if (passedImageUrls.size > 1) {
+                    ivImage2.visibility = View.VISIBLE
+                    com.bumptech.glide.Glide.with(requireContext())
+                        .load(passedImageUrls[1])
+                        .into(ivImage2)
+                        
+                    ivImage2.setOnClickListener {
+                        FullScreenImageDialog.show(requireContext(), passedImageUrls[1])
+                    }
+                } else {
+                    ivImage2.visibility = View.GONE
+                }
+            } else {
+                llImages.visibility = View.GONE
+            }
+
             ivLikeIcon.setColorFilter(
                 if (isLiked) ContextCompat.getColor(requireContext(), R.color.unread_badge)
                 else ContextCompat.getColor(requireContext(), R.color.text_muted)
             )
+
+            val btnMore = findViewById<ImageButton>(R.id.btn_more_detail)
+            btnMore.visibility = if (passedUserId == currentUserId) View.VISIBLE else View.GONE
+        }
+    }
+
+    private fun showPostOptions() {
+        if (passedUserId != currentUserId) {
+            return
+        }
+
+        val options = arrayOf("编辑", "删除")
+        AlertDialog.Builder(requireContext())
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showEditPostDialog()
+                    1 -> showDeletePostConfirmDialog()
+                }
+            }
+            .show()
+    }
+
+    private fun showEditPostDialog() {
+        val etContent = EditText(requireContext()).apply {
+            hint = "编辑你的秘密..."
+            setText(passedContent)
+            setSelection(text.length)
+            setPadding(48, 32, 48, 32)
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("编辑秘密")
+            .setView(etContent)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("保存") { _, _ ->
+                val newContent = etContent.text.toString().trim()
+                if (newContent.isNotEmpty()) {
+                    updatePost(newContent)
+                } else {
+                    Toast.makeText(requireContext(), "内容不能为空", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .show()
+    }
+
+    private fun updatePost(content: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    RetrofitClient.postsApi.updatePost(
+                        postId,
+                        com.zjgsu.treehole.network.UpdatePostRequest(content, passedMood)
+                    )
+                }
+                if (response.isSuccessful) {
+                    response.body()?.let {
+                        passedContent = it.post.content
+                        requireView().findViewById<TextView>(R.id.tv_detail_content).text = it.post.content
+                        Toast.makeText(requireContext(), "已更新", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(requireContext(), "更新失败", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "更新失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun showDeletePostConfirmDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("删除秘密")
+            .setMessage("确定要删除这个秘密吗？此操作无法撤销。")
+            .setNegativeButton("取消", null)
+            .setPositiveButton("删除") { _, _ ->
+                deletePost()
+            }
+            .show()
+    }
+
+    private fun deletePost() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    RetrofitClient.postsApi.deletePost(postId)
+                }
+                if (response.isSuccessful) {
+                    Toast.makeText(requireContext(), "已删除", Toast.LENGTH_SHORT).show()
+                    findNavController().navigateUp()
+                } else {
+                    Toast.makeText(requireContext(), "删除失败", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun updateComment(commentId: String, content: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    RetrofitClient.postsApi.updateComment(
+                        commentId,
+                        com.zjgsu.treehole.network.AddCommentRequest(content)
+                    )
+                }
+                if (response.isSuccessful) {
+                    Toast.makeText(requireContext(), "评论已更新", Toast.LENGTH_SHORT).show()
+                    loadPost()
+                } else {
+                    Toast.makeText(requireContext(), "更新失败", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "更新失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun deleteComment(commentId: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    RetrofitClient.postsApi.deleteComment(commentId)
+                }
+                if (response.isSuccessful) {
+                    Toast.makeText(requireContext(), "评论已删除", Toast.LENGTH_SHORT).show()
+                    loadPost()
+                } else {
+                    Toast.makeText(requireContext(), "删除失败", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
     private fun loadFromCache() {
         val cached = PostCacheManager.getPostDetail(postId)
         if (cached != null && PostCacheManager.isPostDetailCacheValid(postId)) {
-            // We have valid cache - display it immediately
             requireView().apply {
                 findViewById<TextView>(R.id.tv_like_count).text = cached.likes.toString()
                 findViewById<TextView>(R.id.tv_echoes_count).text = "回响 ${cached.commentCount}"
@@ -174,7 +349,6 @@ class SecretDetailFragment : Fragment() {
                     else ContextCompat.getColor(requireContext(), R.color.text_muted)
                 )
 
-                // Show cached comments
                 val comments = cached.comments.map { c ->
                     Comment(
                         id = c.id,
@@ -187,7 +361,7 @@ class SecretDetailFragment : Fragment() {
                         userId = c.userId
                     )
                 }
-                val adapter = CommentAdapter(comments)
+                val adapter = CommentAdapter(comments, this@SecretDetailFragment, currentUserId)
                 findViewById<RecyclerView>(R.id.rv_comments).adapter = adapter
                 findViewById<RecyclerView>(R.id.rv_comments).layoutManager = LinearLayoutManager(requireContext())
             }
@@ -205,7 +379,12 @@ class SecretDetailFragment : Fragment() {
                         val post = data.post
                         val comments = data.comments
 
-                        // Don't update like state if user just toggled it
+                        passedUserId = post.user?.id ?: ""
+                        passedNickname = post.user?.nickname ?: ""
+                        passedAvatar = post.user?.avatar ?: ""
+                        passedContent = post.content
+                        passedMood = post.mood
+
                         if (!isTogglingLike) {
                             isLiked = post.isLiked
                             likeCount = post.likes
@@ -224,10 +403,45 @@ class SecretDetailFragment : Fragment() {
                             val ivAvatar = findViewById<ImageView>(R.id.iv_detail_avatar)
                             AvatarLoader.loadAvatar(requireContext(), avatar, ivAvatar)
 
+                            val llImages = findViewById<View>(R.id.ll_detail_images)
+                            val ivImage1 = findViewById<ImageView>(R.id.iv_detail_image_1)
+                            val ivImage2 = findViewById<ImageView>(R.id.iv_detail_image_2)
+
+                            if (post.imageUrls.isNotEmpty()) {
+                                llImages.visibility = View.VISIBLE
+                                
+                                ivImage1.visibility = View.VISIBLE
+                                com.bumptech.glide.Glide.with(requireContext())
+                                    .load(post.imageUrls[0])
+                                    .into(ivImage1)
+                                    
+                                ivImage1.setOnClickListener {
+                                    FullScreenImageDialog.show(requireContext(), post.imageUrls[0])
+                                }
+
+                                if (post.imageUrls.size > 1) {
+                                    ivImage2.visibility = View.VISIBLE
+                                    com.bumptech.glide.Glide.with(requireContext())
+                                        .load(post.imageUrls[1])
+                                        .into(ivImage2)
+                                        
+                                    ivImage2.setOnClickListener {
+                                        FullScreenImageDialog.show(requireContext(), post.imageUrls[1])
+                                    }
+                                } else {
+                                    ivImage2.visibility = View.GONE
+                                }
+                            } else {
+                                llImages.visibility = View.GONE
+                            }
+
                             ivLikeIcon.setColorFilter(
                                 if (isLiked) ContextCompat.getColor(requireContext(), R.color.unread_badge)
                                 else ContextCompat.getColor(requireContext(), R.color.text_muted)
                             )
+
+                            val btnMore = findViewById<ImageButton>(R.id.btn_more_detail)
+                            btnMore.visibility = if (passedUserId == currentUserId) View.VISIBLE else View.GONE
 
                             val adapter = CommentAdapter(comments.map { c ->
                                 Comment(
@@ -241,12 +455,11 @@ class SecretDetailFragment : Fragment() {
                                     userId = c.user?.id ?: "",
                                     isAuthor = c.user?.id == post.user?.id
                                 )
-                            })
+                            }, this@SecretDetailFragment, currentUserId)
                             findViewById<RecyclerView>(R.id.rv_comments).adapter = adapter
                             findViewById<RecyclerView>(R.id.rv_comments).layoutManager = LinearLayoutManager(requireContext())
                         }
 
-                        // Cache the data for next time
                         PostCacheManager.cachePostDetail(
                             postId,
                             comments.map { c ->
@@ -266,7 +479,7 @@ class SecretDetailFragment : Fragment() {
                     }
                 }
             } catch (e: Exception) {
-                // Keep showing passed data on error - user already has something to see
+                // Keep showing passed data on error
             } finally {
                 progressBar.visibility = View.GONE
             }
@@ -299,7 +512,6 @@ class SecretDetailFragment : Fragment() {
                 }
                 if (response.isSuccessful) {
                     response.body()?.let { body ->
-                        // Sync with server response
                         isLiked = body.isLiked
                         likeCount = body.likes
                         requireView().findViewById<TextView>(R.id.tv_like_count).text = likeCount.toString()
@@ -312,7 +524,6 @@ class SecretDetailFragment : Fragment() {
                         }
                     }
                 } else {
-                    // Revert on failure
                     isLiked = !newIsLiked
                     likeCount = if (newIsLiked) newLikeCount - 1 else newLikeCount + 1
                     requireView().findViewById<TextView>(R.id.tv_like_count).text = likeCount.toString()
@@ -322,7 +533,7 @@ class SecretDetailFragment : Fragment() {
                     )
                 }
             } catch (e: Exception) {
-                // Network error - silently revert is already done by not updating
+                // Network error
             } finally {
                 isTogglingLike = false
             }
@@ -342,7 +553,6 @@ class SecretDetailFragment : Fragment() {
     }
 
     private fun sendComment(content: String, onSuccess: () -> Unit) {
-        // Immediately close input and show success
         onSuccess()
         Toast.makeText(requireContext(), "回响已发送 ✨", Toast.LENGTH_SHORT).show()
 
@@ -352,11 +562,10 @@ class SecretDetailFragment : Fragment() {
                     RetrofitClient.postsApi.addComment(postId, com.zjgsu.treehole.network.AddCommentRequest(content))
                 }
                 if (response.isSuccessful) {
-                    // Refresh the comments
                     loadPost()
                 }
             } catch (e: Exception) {
-                // Silently fail - comment is already sent
+                // Silently fail
             }
         }
     }

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Outer soft glow -->
+    <item android:bottom="0dp" android:top="0dp" android:left="0dp" android:right="0dp">
+        <shape android:shape="oval">
+            <solid android:color="#00000000" />
+            <stroke android:width="4dp" android:color="#2600E5FF" />
+        </shape>
+    </item>
+    <!-- Inner bright ring with gradient fill -->
+    <item android:bottom="2dp" android:top="2dp" android:left="2dp" android:right="2dp">
+        <shape android:shape="oval">
+            <gradient
+                android:startColor="#3300E5FF"
+                android:endColor="#0D00E5FF"
+                android:angle="135" />
+            <stroke android:width="1.5dp" android:color="#00E5FF" />
+        </shape>
+    </item>
+</layer-list>

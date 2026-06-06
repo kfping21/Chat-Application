@@ -12,21 +12,7 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- Unified Page Header with decorative line -->
-        <LinearLayout
-            android:id="@+id/header_feed"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@color/bg_header"
-            android:paddingStart="@dimen/page_header_padding_horizontal"
-            android:paddingEnd="@dimen/page_header_padding_horizontal"
-            android:paddingTop="2dp"
-            android:paddingBottom="2dp"
-            android:elevation="8dp"
-            android:gravity="center_horizontal">
 
-        </LinearLayout>
 
         <!-- Tab Layout for 推荐/关注 -->
         <LinearLayout

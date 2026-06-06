@@ -46,6 +46,7 @@ class EchoesFragment : Fragment() {
         }
 
         btnComments.setOnClickListener {
+            if (!isAdded || context == null) return@setOnClickListener
             vp.currentItem = 0
             btnComments.setBackgroundResource(R.drawable.bg_chip_selected)
             btnComments.setTextColor(ContextCompat.getColor(requireContext(), R.color.gold_primary))
@@ -55,6 +56,7 @@ class EchoesFragment : Fragment() {
         }
 
         btnMessages.setOnClickListener {
+            if (!isAdded || context == null) return@setOnClickListener
             vp.currentItem = 1
             btnMessages.setBackgroundResource(R.drawable.bg_chip_selected)
             btnMessages.setTextColor(ContextCompat.getColor(requireContext(), R.color.gold_primary))

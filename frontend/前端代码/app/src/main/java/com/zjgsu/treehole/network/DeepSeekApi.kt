@@ -20,13 +20,16 @@ object DeepSeekApi {
     // ==========================================
     // ⚠️ 在这里填入你的 SiliconFlow API Key ⚠️
     // ==========================================
-    private const val API_KEY = "sk-xeubtyphhsggtsmnktsgutbbimmcbiajvzsxnvaabiogohmb"
+    private const val API_KEY = "sk-ssjyovbqzrxwftpbmwcamovccvomwccbektsvbrxqhzomzml"
 
     // SiliconFlow API 地址
     private const val BASE_URL = "https://api.siliconflow.cn/v1"
 
-    // DeepSeek V3 模型
-    private const val MODEL = "deepseek-ai/DeepSeek-V3"
+    // DeepSeek V3 模型 (纯文本)
+    private const val MODEL_TEXT = "deepseek-ai/DeepSeek-V3"
+    
+    // 视觉模型
+    private const val MODEL_VISION = "Qwen/Qwen3-VL-32B-Instruct"
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -36,11 +39,6 @@ object DeepSeekApi {
 
     /**
      * 调用 SiliconFlow API 生成推荐回复
-     *
-     * @param chatHistory 最近的多轮对话历史，用于生成更精准的推荐回复
-     * @param latestMessage 最新收到的对方消息
-     * @param soulMood 灵魂伴侣的心情/背景描述，用于生成更个性化的回复
-     * @param callback 回调函数，返回两条推荐回复
      */
     fun generateReplySuggestions(
         chatHistory: List<Pair<String, String>>, // Pair<sender, message>
@@ -48,19 +46,9 @@ object DeepSeekApi {
         soulMood: String,
         callback: (primary: String, secondary: String) -> Unit
     ) {
-        if (API_KEY == "YOUR_SILICONFLOW_API_KEY" || API_KEY.isBlank()) {
-            callback(
-                "请先配置 SiliconFlow API Key 才能使用 AI 生成功能",
-                "AI 推荐功能需要有效的 API Key"
-            )
+        if (API_KEY.isBlank() || API_KEY == "YOUR_SILICONFLOW_API_KEY") {
+            callback("请先配置 API Key", "API Key 未配置")
             return
-        }
-
-        // 构建灵魂伴侣的背景描述
-        val soulContext = if (soulMood.isNotBlank()) {
-            "\n\n【灵魂伴侣的背景心情】$soulMood"
-        } else {
-            ""
         }
 
         val systemPrompt = """你是一个真实的朋友在帮用户想回复。
@@ -86,7 +74,7 @@ object DeepSeekApi {
         }
 
         val jsonBody = JSONObject().apply {
-            put("model", MODEL)
+            put("model", MODEL_TEXT)
             put("messages", JSONArray().apply {
                 put(JSONObject().apply {
                     put("role", "system")
@@ -117,11 +105,10 @@ object DeepSeekApi {
                     if (response.isSuccessful) {
                         val responseBody = response.body?.string()
                         val json = JSONObject(responseBody ?: "{}")
-                        val choices = json.optJSONArray("choices")
-                        val content = choices?.optJSONObject(0)
+                        val content = json.optJSONArray("choices")
+                            ?.optJSONObject(0)
                             ?.optJSONObject("message")
-                            ?.optString("content")
-                            ?: ""
+                            ?.optString("content") ?: ""
 
                         val lines = content.trim().split("\n").filter { it.isNotBlank() }
                         val primary = lines.getOrElse(0) { "谢谢你的分享，我在认真听" }
@@ -129,25 +116,95 @@ object DeepSeekApi {
 
                         callback(primary.trim(), secondary.trim())
                     } else {
-                        val errorBody = response.body?.string()
-                        val errorMessage = try {
-                            val errorJson = JSONObject(errorBody ?: "{}")
-                            errorJson.optString("error", "未知错误")
-                        } catch (e: Exception) {
-                            "网络请求失败: ${response.code}"
-                        }
-                        callback(
-                            "__ERROR__AI 服务暂时不可用，请稍后重试",
-                            "__ERROR__$errorMessage"
-                        )
+                        callback("__ERROR__AI 服务暂时不可用", "__ERROR__HTTP ${response.code}")
                     }
                 }
             } catch (e: Exception) {
-                callback(
-                    "__ERROR__AI 生成失败",
-                    "__ERROR__${e.message}"
-                )
+                callback("__ERROR__AI 生成失败", "__ERROR__${e.message}")
             }
         }.start()
+    }
+    
+    /**
+     * 调用 SiliconFlow 视觉大模型生成发帖文案
+     * 返回 Call 对象以便可以取消请求
+     */
+    fun generatePostInspiration(
+        base64Image: String?,
+        callback: (text: String, isError: Boolean) -> Unit
+    ): Call? {
+        if (API_KEY.isBlank() || API_KEY == "YOUR_SILICONFLOW_API_KEY") {
+            callback("请先配置 API Key", true)
+            return null
+        }
+
+        val jsonBody = JSONObject().apply {
+            put("model", MODEL_VISION)
+            put("temperature", 0.7)
+            put("max_tokens", 200)
+            
+            val contentArray = JSONArray()
+            contentArray.put(JSONObject().apply {
+                put("type", "text")
+                put("text", "这是一张用户准备发到匿名树洞里的图片，请你帮他写一段吸引人的发帖配图文案（带有情绪价值、稍微带点调皮或文艺，不超过50个字）。注意：直接输出文案内容，**绝对不要带有任何#话题标签**，不需要任何解释。")
+            })
+            
+            if (base64Image != null) {
+                contentArray.put(JSONObject().apply {
+                    put("type", "image_url")
+                    put("image_url", JSONObject().apply {
+                        put("url", "data:image/jpeg;base64,$base64Image")
+                    })
+                })
+            }
+            
+            put("messages", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("role", "user")
+                    put("content", if (base64Image != null) contentArray else contentArray.optJSONObject(0).optString("text"))
+                })
+            })
+        }
+
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val body = jsonBody.toString().toRequestBody(mediaType)
+
+        val request = Request.Builder()
+            .url("${BASE_URL}/chat/completions")
+            .addHeader("Authorization", "Bearer $API_KEY")
+            .addHeader("Content-Type", "application/json")
+            .post(body)
+            .build()
+            
+        val call = client.newCall(request)
+
+        Thread {
+            try {
+                call.execute().use { response ->
+                    if (response.isSuccessful) {
+                        val responseBody = response.body?.string()
+                        val json = JSONObject(responseBody ?: "{}")
+                        val content = json.optJSONArray("choices")
+                            ?.optJSONObject(0)
+                            ?.optJSONObject("message")
+                            ?.optString("content") ?: ""
+                        // 额外做一个正则替换，防止AI没听话
+                        val cleanContent = content.replace(Regex("#\\S+"), "").trim()
+                        callback(cleanContent, false)
+                    } else {
+                        val errorBody = response.body?.string() ?: ""
+                        callback("AI服务返回错误: ${response.code}\n$errorBody", true)
+                    }
+                }
+            } catch (e: Exception) {
+                if (call.isCanceled()) {
+                    // Do nothing if cancelled
+                } else {
+                    callback("网络或解析错误: ${e.message}", true)
+                }
+            }
+        }.start()
+        
+        return call
     }
 }

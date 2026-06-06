@@ -1,36 +1,143 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="130dp"
+    android:minHeight="130dp"
     android:orientation="vertical"
     android:background="@drawable/bg_card"
-    android:padding="14dp"
-    android:layout_marginBottom="10dp">
+    android:padding="12dp"
+    android:layout_marginStart="4dp"
+    android:layout_marginEnd="4dp"
+    android:layout_marginBottom="10dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground">
 
+    <!-- Animated Wave Icon -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_marginBottom="8dp"
+        app:cardCornerRadius="8dp"
+        app:cardBackgroundColor="#000000"
+        app:cardElevation="0dp">
+
+        <com.zjgsu.treehole.ui.AudioWaveView
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:layout_gravity="center" />
+            
+    </androidx.cardview.widget.CardView>
+
+    <!-- Room Name -->
     <TextView
         android:id="@+id/tv_party_name"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="16sp"
+        android:textSize="14sp"
         android:textStyle="bold"
         android:textColor="@color/text_primary"
-        android:text="雨夜随便聊" />
+        android:text="为什么出轨的人那么多"
+        android:maxLines="2"
+        android:ellipsize="end"/>
 
+    <!-- Subtitle -->
     <TextView
         android:id="@+id/tv_party_subtitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:textSize="13sp"
-        android:textColor="@color/text_secondary"
-        android:text="雨季与心情，你选哪个？" />
-
-    <TextView
-        android:id="@+id/tv_party_meta"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:textSize="11sp"
         android:textColor="@color/text_muted"
-        android:text="在线 88 · 热度 1024" />
+        android:text="追寻自由，寻找真正的..."
+        android:maxLines="1"
+        android:ellipsize="end"/>
+
+    <!-- Bottom bar with avatars and stats -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="bottom|center_vertical"
+        android:layout_marginTop="8dp">
+
+        <!-- Avatars -->
+        <LinearLayout
+            android:id="@+id/ll_avatars"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cv_avatar_1"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                app:cardCornerRadius="11dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/bg_card"
+                android:visibility="gone">
+                <ImageView
+                    android:id="@+id/iv_avatar_1"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:scaleType="centerCrop"/>
+            </androidx.cardview.widget.CardView>
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cv_avatar_2"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginStart="-6dp"
+                app:cardCornerRadius="11dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/bg_card"
+                android:visibility="gone">
+                <ImageView
+                    android:id="@+id/iv_avatar_2"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:scaleType="centerCrop"/>
+            </androidx.cardview.widget.CardView>
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cv_avatar_3"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginStart="-6dp"
+                app:cardCornerRadius="11dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/bg_card"
+                android:visibility="gone">
+                <ImageView
+                    android:id="@+id/iv_avatar_3"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:scaleType="centerCrop"/>
+            </androidx.cardview.widget.CardView>
+        </LinearLayout>
+
+        <!-- Online indicator -->
+        <ImageView
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:src="@drawable/ic_sparkle"
+            app:tint="@color/gold_primary"
+            android:layout_marginStart="6dp"/>
+
+        <!-- Participant count -->
+        <TextView
+            android:id="@+id/tv_party_meta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="10sp"
+            android:textColor="@color/text_muted"
+            android:text="141 在线"
+            android:layout_marginStart="3dp"/>
+    </LinearLayout>
+
 </LinearLayout>
