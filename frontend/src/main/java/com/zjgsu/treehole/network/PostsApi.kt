@@ -14,7 +14,8 @@ data class PostDto(
     val commentCount: Int = 0,
     val createdAt: String,
     val user: PostUserDto?,
-    val isLiked: Boolean = false
+    val isLiked: Boolean = false,
+    val imageUrls: List<String> = emptyList()
 )
 
 data class PostUserDto(
@@ -77,6 +78,29 @@ data class CreatePostResponse(
     val post: PostDto
 )
 
+// ========== Update Post Request ==========
+data class UpdatePostRequest(
+    val content: String,
+    val mood: String = "平静"
+)
+
+// ========== My Comments Response ==========
+data class MyCommentsResponse(
+    val comments: List<MyCommentDto>
+)
+
+data class MyCommentDto(
+    val id: String,
+    val content: String,
+    val createdAt: String,
+    val postId: String,
+    val post: PostDto?,
+    val mood: String = ""
+) {
+    val postContent: String
+        get() = post?.content ?: ""
+}
+
 interface PostsApi {
     @GET("api/posts/feed")
     suspend fun getFeed(
@@ -91,20 +115,58 @@ interface PostsApi {
     @GET("api/posts/user/{userId}")
     suspend fun getUserPosts(@Path("userId") userId: String): Response<MyPostsResponse>
 
+    @GET("api/posts/search")
+    suspend fun searchPosts(
+        @Query("q") query: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10
+    ): Response<FeedResponse>
+
     @GET("api/posts/{id}")
     suspend fun getPost(@Path("id") id: String): Response<PostResponse>
 
+    @Multipart
     @POST("api/posts")
-    suspend fun createPost(@Body request: CreatePostRequest): Response<CreatePostResponse>
+    suspend fun createPost(
+        @Part("content") content: RequestBody,
+        @Part("mood") mood: RequestBody,
+        @Part images: List<MultipartBody.Part>
+    ): Response<CreatePostResponse>
 
+    // ===== Posts CRUD =====
+    @PUT("api/posts/{id}")
+    suspend fun updatePost(
+        @Path("id") id: String,
+        @Body request: UpdatePostRequest
+    ): Response<CreatePostResponse>
+
+    @DELETE("api/posts/{id}")
+    suspend fun deletePost(@Path("id") id: String): Response<MessageResponse>
+
+    // ===== Liked Posts =====
+    @GET("api/posts/liked")
+    suspend fun getLikedPosts(): Response<MyPostsResponse>
+
+    // ===== Post Interactions =====
     @POST("api/posts/{id}/like")
     suspend fun likePost(@Path("id") id: String): Response<LikeResponse>
 
     @POST("api/posts/{id}/comment")
     suspend fun addComment(@Path("id") id: String, @Body request: AddCommentRequest): Response<CommentResponse>
 
-    @DELETE("api/posts/{id}")
-    suspend fun deletePost(@Path("id") id: String): Response<MessageResponse>
+    // ===== Comments CRUD =====
+    @PUT("api/comments/{id}")
+    suspend fun updateComment(
+        @Path("id") id: String,
+        @Body request: AddCommentRequest
+    ): Response<CommentResponse>
+
+    @DELETE("api/comments/{id}")
+    suspend fun deleteComment(@Path("id") id: String): Response<MessageResponse>
+
+    // ===== My Comments =====
+    @GET("api/posts/comments/my")
+    suspend fun getMyComments(): Response<MyCommentsResponse>
 }
 
 data class MessageResponse(

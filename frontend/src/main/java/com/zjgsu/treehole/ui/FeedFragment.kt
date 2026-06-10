@@ -9,6 +9,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.zjgsu.treehole.R
@@ -71,6 +72,10 @@ class FeedFragment : Fragment() {
                 updateTabStyle()
                 refreshFeed()
             }
+        }
+
+        view.findViewById<android.widget.ImageView>(R.id.btn_search_feed).setOnClickListener {
+            findNavController().navigate(R.id.nav_search)
         }
 
         rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
@@ -145,7 +150,8 @@ class FeedFragment : Fragment() {
                                 avatar = post.user?.avatar ?: "",
                                 nickname = post.user?.nickname ?: "",
                                 isLiked = post.isLiked,
-                                userId = post.user?.id ?: ""
+                                userId = post.user?.id ?: "",
+                                imageUrls = post.imageUrls
                             )
                         }
 
@@ -196,7 +202,8 @@ class FeedFragment : Fragment() {
                                 avatar = post.user?.avatar ?: "",
                                 nickname = post.user?.nickname ?: "",
                                 isLiked = post.isLiked,
-                                userId = post.user?.id ?: ""
+                                userId = post.user?.id ?: "",
+                                imageUrls = post.imageUrls
                             )
                             secrets.add(secret)
                             adapter?.updateCounts(post.id, post.likes, post.commentCount)
@@ -258,7 +265,8 @@ class FeedFragment : Fragment() {
                                 avatar = post.user?.avatar ?: "",
                                 nickname = post.user?.nickname ?: "",
                                 isLiked = post.isLiked,
-                                userId = post.user?.id ?: ""
+                                userId = post.user?.id ?: "",
+                                imageUrls = post.imageUrls
                             )
                             secrets.add(secret)
                             adapter?.updateCounts(post.id, post.likes, post.commentCount)

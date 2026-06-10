@@ -17,6 +17,10 @@ const postSchema = new mongoose.Schema({
         type: String,
         default: '平静'
     },
+    imageUrls: {
+        type: [String],
+        default: []
+    },
     likes: {
         type: Number,
         default: 0

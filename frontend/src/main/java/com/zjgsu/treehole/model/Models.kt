@@ -10,7 +10,8 @@ data class Secret(
     val avatar: String = "",
     val nickname: String = "",
     val isLiked: Boolean = false,
-    var userId: String = "" // Author's user ID for chat
+    var userId: String = "", // Author's user ID for chat
+    val imageUrls: List<String> = emptyList()
 )
 
 data class Comment(
@@ -64,4 +65,13 @@ data class MoodItem(
     val emoji: String,
     val colorStart: String,
     val colorEnd: String
+)
+
+data class MyComment(
+    val id: String,
+    val content: String,
+    val timeAgo: String,
+    val postId: String,
+    val postContent: String,
+    val mood: String
 )

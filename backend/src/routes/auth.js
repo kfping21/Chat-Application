@@ -126,4 +126,40 @@ router.get('/me', auth, async (req, res) => {
     }
 });
 
+// Change password
+router.post('/change-password', auth, async (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+
+        if (!oldPassword || !newPassword) {
+            return res.status(400).json({ message: '旧密码和新密码都不能为空' });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({ message: '新密码长度至少6位' });
+        }
+
+        const user = await User.findById(req.userId);
+
+        if (!user) {
+            return res.status(404).json({ message: '用户不存在' });
+        }
+
+        // Verify old password
+        const isMatch = await user.comparePassword(oldPassword);
+        if (!isMatch) {
+            return res.status(400).json({ message: '旧密码错误' });
+        }
+
+        // Update password
+        user.password = newPassword;
+        await user.save();
+
+        res.json({ message: '密码修改成功' });
+    } catch (error) {
+        console.error('Change password error:', error);
+        res.status(500).json({ message: '服务器错误' });
+    }
+});
+
 module.exports = router;

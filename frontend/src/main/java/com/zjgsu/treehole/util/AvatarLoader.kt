@@ -27,8 +27,8 @@ object AvatarLoader {
             return
         }
 
-        // Handle preset avatars
-        if (avatarUrl.startsWith("preset_")) {
+        // Handle preset avatars (avatar_preset_, avatar_cartoon_, avatar_scenery_)
+        if (avatarUrl.startsWith("preset_") || avatarUrl.startsWith("avatar_cartoon_") || avatarUrl.startsWith("avatar_scenery_")) {
             val presetId = context.resources.getIdentifier(avatarUrl, "drawable", context.packageName)
             if (presetId != 0) {
                 imageView.setImageResource(presetId)

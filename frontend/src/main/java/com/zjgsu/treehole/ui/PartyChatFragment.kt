@@ -26,6 +26,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import android.widget.Button
+import com.zjgsu.treehole.adapter.PartyMemberAdapter
+import com.zjgsu.treehole.network.ExploreUserDto
+import com.zjgsu.treehole.network.WhisperWebSocket
 
 class PartyChatFragment : Fragment() {
     private var roomId: String = ""
@@ -36,6 +41,36 @@ class PartyChatFragment : Fragment() {
     private lateinit var adapter: PartyMessageAdapter
     private val messages = mutableListOf<com.zjgsu.treehole.network.PartyMessageDto>()
     private var pollJob: Job? = null
+    
+    private var isCreator = false
+    private var currentCreatorId = ""
+    private var participantsList = emptyList<ExploreUserDto>()
+    
+    private val partyRoomListener = object : WhisperWebSocket.OnPartyRoomListener {
+        override fun onPartyRoomCreated(room: WhisperWebSocket.PartyRoomDto) {}
+        override fun onPartyRoomDismissed(dismissedRoomId: String) {
+            if (dismissedRoomId == roomId) {
+                activity?.runOnUiThread {
+                    if (findNavController().currentDestination?.id == R.id.partyChatFragment) {
+                        Toast.makeText(context, "房主已解散该派对", Toast.LENGTH_SHORT).show()
+                        findNavController().navigateUp()
+                    }
+                }
+            }
+        }
+        override fun onNewPartyMessage(message: com.zjgsu.treehole.network.PartyMessageDto) {
+            if (message.roomId == roomId) {
+                activity?.runOnUiThread {
+                    val exists = messages.any { it.id == message.id }
+                    if (!exists) {
+                        messages.add(message)
+                        adapter.notifyItemInserted(messages.size - 1)
+                        rv.scrollToPosition(messages.size - 1)
+                    }
+                }
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -50,8 +85,14 @@ class PartyChatFragment : Fragment() {
         view.findViewById<TextView>(R.id.tv_party_room_name).text = roomName
         view.findViewById<ImageButton>(R.id.btn_party_back).setOnClickListener {
             hideKeyboard()
-            leaveRoom()
+            if (!isCreator && roomId.isNotBlank()) {
+                leaveRoom()
+            }
             findNavController().navigateUp()
+        }
+        
+        view.findViewById<ImageButton>(R.id.btn_party_members).setOnClickListener {
+            showMembersDialog()
         }
 
         rv = view.findViewById(R.id.rv_party_messages)
@@ -76,7 +117,13 @@ class PartyChatFragment : Fragment() {
             }
         }
 
+        WhisperWebSocket.setPartyRoomListener(partyRoomListener)
         loadMessages(scrollToBottom = true)
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        WhisperWebSocket.setPartyRoomListener(null)
     }
 
     private fun sendMessage(text: String) {
@@ -115,7 +162,7 @@ class PartyChatFragment : Fragment() {
         pollJob = viewLifecycleOwner.lifecycleScope.launch {
             while (isActive) {
                 loadMessages(scrollToBottom = false)
-                delay(3000)
+                delay(15000)
             }
         }
     }
@@ -130,6 +177,10 @@ class PartyChatFragment : Fragment() {
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null) {
+                        isCreator = body.room.isCreator
+                        currentCreatorId = body.room.creatorId
+                        participantsList = body.room.participants ?: emptyList()
+                        
                         val oldSize = messages.size
                         adapter.replaceAll(body.messages)
                         if (scrollToBottom || body.messages.size > oldSize) {
@@ -163,5 +214,57 @@ class PartyChatFragment : Fragment() {
                 // Ignore leave errors
             }
         }
+    }
+
+    private fun dismissRoom() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    RetrofitClient.partyApi.dismissRoom(roomId)
+                }
+                if (response.isSuccessful) {
+                    activity?.runOnUiThread {
+                        if (findNavController().currentDestination?.id == R.id.partyChatFragment) {
+                            Toast.makeText(requireContext(), "派对已解散", Toast.LENGTH_SHORT).show()
+                            findNavController().navigateUp()
+                        }
+                    }
+                } else {
+                    activity?.runOnUiThread {
+                        Toast.makeText(requireContext(), "解散失败", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                activity?.runOnUiThread {
+                    Toast.makeText(requireContext(), "解散出错", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun showMembersDialog() {
+        val bottomSheet = BottomSheetDialog(requireContext())
+        val view = layoutInflater.inflate(R.layout.dialog_party_members, null)
+        bottomSheet.setContentView(view)
+
+        val rvMembers = view.findViewById<RecyclerView>(R.id.rv_members)
+        val btnDismiss = view.findViewById<Button>(R.id.btn_dismiss_party)
+
+        rvMembers.layoutManager = LinearLayoutManager(requireContext())
+        val memberAdapter = PartyMemberAdapter(currentCreatorId)
+        rvMembers.adapter = memberAdapter
+        memberAdapter.replaceAll(participantsList)
+
+        if (isCreator) {
+            btnDismiss.visibility = View.VISIBLE
+            btnDismiss.setOnClickListener {
+                bottomSheet.dismiss()
+                dismissRoom()
+            }
+        } else {
+            btnDismiss.visibility = View.GONE
+        }
+
+        bottomSheet.show()
     }
 }

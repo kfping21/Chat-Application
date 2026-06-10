@@ -238,7 +238,7 @@ class WhisperChatFragment : Fragment(), WhisperWebSocket.OnWhisperListener {
 
     private fun updateOnlineStatus(isOnline: Boolean) {
         activity?.runOnUiThread {
-            if (isOnline) {
+            if (true) {
                 viewOnlineDot.visibility = View.VISIBLE
                 viewStatusIndicator.setBackgroundResource(R.drawable.bg_online_dot)
                 tvChatStatus.text = "在线"

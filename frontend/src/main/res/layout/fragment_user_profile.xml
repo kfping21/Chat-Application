@@ -13,33 +13,39 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:background="@color/bg_header"
+        android:background="@color/bg_deep"
         android:paddingStart="@dimen/page_header_padding_horizontal"
         android:paddingEnd="@dimen/page_header_padding_horizontal"
-        android:paddingTop="4dp"
-        android:paddingBottom="4dp"
-        android:elevation="8dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:elevation="0dp"
         android:gravity="center_vertical">
 
         <ImageButton
             android:id="@+id/btn_back"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_arrow_back"
-            app:tint="@color/gold_primary" />
+            android:padding="8dp"
+            android:scaleType="centerInside"
+            app:tint="@color/text_primary" />
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="他的空间"
-            android:textSize="18sp"
+            android:textSize="15sp"
             android:textStyle="bold"
-            android:textColor="@color/gold_primary"
+            android:textColor="@color/text_primary"
             android:letterSpacing="0.05"
             android:fontFamily="sans-serif-medium"
             android:gravity="center" />
+            
+        <View
+            android:layout_width="40dp"
+            android:layout_height="40dp" />
     </LinearLayout>
 
     <ScrollView
@@ -266,53 +272,55 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center"
-                    android:layout_marginTop="16dp">
+                    android:layout_marginTop="20dp">
 
                     <LinearLayout
                         android:id="@+id/btn_follow"
                         android:layout_width="0dp"
-                        android:layout_height="40dp"
+                        android:layout_height="44dp"
                         android:layout_weight="1"
                         android:layout_marginEnd="8dp"
-                        android:background="@drawable/bg_ai_notice_chip"
+                        android:background="@drawable/bg_button_golden"
                         android:gravity="center"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:elevation="2dp">
                         <ImageView
-                            android:layout_width="16dp"
-                            android:layout_height="16dp"
+                            android:layout_width="14dp"
+                            android:layout_height="14dp"
                             android:src="@android:drawable/btn_plus"
-                            app:tint="@color/ai_accent" />
+                            app:tint="@color/bg_deep" />
                         <TextView
                             android:id="@+id/tv_follow"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="关注"
-                            android:textColor="@color/ai_accent"
-                            android:textSize="13sp"
-                            android:layout_marginStart="4dp" />
+                            android:textColor="@color/bg_deep"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:layout_marginStart="6dp" />
                     </LinearLayout>
 
                     <LinearLayout
                         android:id="@+id/btn_chat"
                         android:layout_width="0dp"
-                        android:layout_height="40dp"
+                        android:layout_height="44dp"
                         android:layout_weight="1"
                         android:layout_marginStart="8dp"
-                        android:background="@drawable/bg_ai_notice_chip"
+                        android:background="@drawable/bg_chip_default"
                         android:gravity="center"
                         android:orientation="horizontal">
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@android:drawable/ic_dialog_email"
-                            app:tint="@color/ai_accent" />
+                            app:tint="@color/text_primary" />
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="私信"
-                            android:textColor="@color/ai_accent"
-                            android:textSize="13sp"
-                            android:layout_marginStart="4dp" />
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:layout_marginStart="6dp" />
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>

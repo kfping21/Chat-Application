@@ -3,11 +3,8 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 
-// Prefer MONGO_URI, fall back to DATABASE_URL (Railway) or local
-const MONGO_URI =
-    process.env.MONGO_URI ||
-    process.env.DATABASE_URL ||
-    'mongodb://localhost:27017/treehole';
+// Use DATABASE_URL from .env (used by Railway) or fall back to local
+const MONGO_URI = process.env.DATABASE_URL || 'mongodb://localhost:27017/treehole';
 
 async function cleanup() {
     try {

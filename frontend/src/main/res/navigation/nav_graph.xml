@@ -16,6 +16,16 @@
     </fragment>
 
     <fragment
+        android:id="@+id/nav_search"
+        android:name="com.zjgsu.treehole.ui.SearchFragment"
+        android:label="搜索"
+        tools:layout="@layout/fragment_search">
+        <action
+            android:id="@+id/action_search_to_detail"
+            app:destination="@id/secretDetailFragment" />
+    </fragment>
+
+    <fragment
         android:id="@+id/nav_explore"
         android:name="com.zjgsu.treehole.ui.ExploreFragment"
         android:label="@string/title_explore"
@@ -26,6 +36,9 @@
         <action
             android:id="@+id/action_explore_to_party_chat"
             app:destination="@id/partyChatFragment" />
+        <action
+            android:id="@+id/action_explore_to_bubble_pond"
+            app:destination="@id/bubblePondFragment" />
     </fragment>
 
     <fragment
@@ -54,10 +67,19 @@
             app:destination="@id/secretDetailFragment" />
         <action
             android:id="@+id/action_my_to_login"
-            app:destination="@id/loginFragment" />
+            app:destination="@id/loginFragment"
+            app:popUpTo="@id/nav_my_hollow"
+            app:popUpToInclusive="false" />
         <action
             android:id="@+id/action_my_hollow_to_follow_list"
             app:destination="@id/followListFragment" />
+        <action
+            android:id="@+id/action_my_hollow_to_sidebar"
+            app:destination="@id/sidebarFragment"
+            app:enterAnim="@anim/slide_in_left"
+            app:exitAnim="@anim/slide_out_right"
+            app:popEnterAnim="@anim/slide_in_right"
+            app:popExitAnim="@anim/slide_out_left" />
     </fragment>
 
     <fragment
@@ -175,6 +197,30 @@
     </fragment>
 
     <fragment
+        android:id="@+id/bubblePondFragment"
+        android:name="com.zjgsu.treehole.ui.BubblePondFragment"
+        android:label="泡泡池塘"
+        tools:layout="@layout/fragment_bubble_pond">
+        <argument
+            android:name="roomId"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="roomName"
+            app:argType="string"
+            android:defaultValue="聊天室" />
+        <action
+            android:id="@+id/action_bubble_pond_to_post_bubble"
+            app:destination="@id/postBubbleFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/postBubbleFragment"
+        android:name="com.zjgsu.treehole.ui.PostBubbleFragment"
+        android:label="发布冒泡"
+        tools:layout="@layout/fragment_post_bubble" />
+
+    <fragment
         android:id="@+id/partyChatFragment"
         android:name="com.zjgsu.treehole.ui.PartyChatFragment"
         android:label="聊天室"
@@ -211,8 +257,30 @@
             app:destination="@id/userProfileFragment" />
     </fragment>
 
+    <fragment
+        android:id="@+id/sidebarFragment"
+        android:name="com.zjgsu.treehole.ui.SidebarFragment"
+        android:label="侧边栏"
+        tools:layout="@layout/layout_sidebar">
+        <action
+            android:id="@+id/action_sidebar_to_login"
+            app:destination="@id/loginFragment"
+            app:popUpTo="@id/nav_my_hollow"
+            app:popUpToInclusive="false" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/driftBottleFragment"
+        android:name="com.zjgsu.treehole.ui.DriftBottleFragment"
+        android:label="漂流瓶"
+        tools:layout="@layout/fragment_drift_bottle" />
+
     <action
         android:id="@+id/action_global_user_profile"
         app:destination="@id/userProfileFragment" />
+
+    <action
+        android:id="@+id/action_global_follow_list"
+        app:destination="@id/followListFragment" />
 
 </navigation>

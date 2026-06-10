@@ -15,6 +15,7 @@ import com.zjgsu.treehole.adapter.ChatPreviewAdapter
 import com.zjgsu.treehole.model.ChatPreview
 import com.zjgsu.treehole.network.RetrofitClient
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -22,8 +23,9 @@ import java.util.TimeZone
 
 class MessagesTabFragment : Fragment() {
     private lateinit var rv: RecyclerView
-    private lateinit var tvEmpty: TextView
+    private var tvEmpty: View? = null
     private var adapter: ChatPreviewAdapter? = null
+    private var refreshJob: kotlinx.coroutines.Job? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? =
         inflater.inflate(R.layout.fragment_messages_tab, container, false)
@@ -32,12 +34,31 @@ class MessagesTabFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         rv = view.findViewById(R.id.rv_chats)
         tvEmpty = view.findViewById(R.id.tv_empty_chats)
+        tvEmpty?.findViewById<TextView>(R.id.tv_empty_text)?.text = "暂无私聊"
+        tvEmpty?.findViewById<TextView>(R.id.tv_empty_emoji)?.text = "💬"
         rv.layoutManager = LinearLayoutManager(requireContext())
     }
 
     override fun onResume() {
         super.onResume()
+        startAutoRefresh()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        refreshJob?.cancel()
+        refreshJob = null
+    }
+
+    private fun startAutoRefresh() {
         loadChatRooms()
+        refreshJob?.cancel()
+        refreshJob = viewLifecycleOwner.lifecycleScope.launch {
+            while (isActive) {
+                kotlinx.coroutines.delay(3000)
+                loadChatRooms()
+            }
+        }
     }
 
     private fun loadChatRooms() {
@@ -46,7 +67,12 @@ class MessagesTabFragment : Fragment() {
                 val response = RetrofitClient.whisperApi.getChatRooms()
                 if (response.isSuccessful) {
                     val rooms = response.body()?.rooms ?: emptyList()
-                    val chats = rooms.map { room ->
+                    // Ensure newly created chat rooms (with no messages) appear at the very top, 
+                    // and others are sorted by latest message time.
+                    val sortedRooms = rooms.sortedByDescending { 
+                        it.lastMessageAt ?: "9999-12-31T23:59:59.999Z" 
+                    }
+                    val chats = sortedRooms.map { room ->
                         ChatPreview(
                             id = room.id,
                             participantId = room.participantId,
@@ -68,14 +94,14 @@ class MessagesTabFragment : Fragment() {
                         findNavController().navigate(R.id.whisperChatFragment, bundle)
                     }
                     rv.adapter = adapter
-                    tvEmpty.visibility = if (chats.isEmpty()) View.VISIBLE else View.GONE
+                    tvEmpty?.visibility = if (chats.isEmpty()) View.VISIBLE else View.GONE
                 } else {
-                    tvEmpty.visibility = View.VISIBLE
-                    tvEmpty.text = "暂无私聊"
+                    tvEmpty?.visibility = View.VISIBLE
+                    tvEmpty?.findViewById<TextView>(R.id.tv_empty_text)?.text = "暂无私聊"
                 }
             } catch (e: Exception) {
-                tvEmpty.visibility = View.VISIBLE
-                tvEmpty.text = "加载失败"
+                tvEmpty?.visibility = View.VISIBLE
+                tvEmpty?.findViewById<TextView>(R.id.tv_empty_text)?.text = "加载失败"
             }
         }
     }

@@ -10,8 +10,8 @@ import java.util.concurrent.TimeUnit
 object RetrofitClient {
 
     // 本地后端地址（主地址 + 备用地址自动回退）
-    private const val PRIMARY_BASE_URL = "http://172.25.28.139:3001/"
-    private const val SECONDARY_BASE_URL = "http://172.25.28.139:3001/"
+    private const val PRIMARY_BASE_URL = "http://10.17.27.114:3001/"
+    private const val SECONDARY_BASE_URL = "http://10.17.27.114:3001/"
     private val BASE_URL_CANDIDATES = listOf(PRIMARY_BASE_URL, SECONDARY_BASE_URL)
 
     @Volatile
@@ -42,6 +42,7 @@ object RetrofitClient {
             val request = chain.request().newBuilder()
                 .header("Accept", "application/json")
                 .header("Connection", "keep-alive")
+                .header("Cache-Control", "no-cache, no-store, must-revalidate")
                 .build()
 
             val firstBase = activeBaseUrl

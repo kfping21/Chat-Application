@@ -17,6 +17,7 @@ import com.zjgsu.treehole.cache.PostCacheManager
 import com.zjgsu.treehole.model.Secret
 import com.zjgsu.treehole.service.PostPreloadService
 import com.zjgsu.treehole.ui.ClickAnimations
+import com.zjgsu.treehole.ui.FullScreenImageDialog
 
 class SecretAdapter(
     private val secrets: List<Secret>,
@@ -29,6 +30,12 @@ class SecretAdapter(
     private val likesCount = mutableMapOf<String, Int>()
     private val commentsCount = mutableMapOf<String, Int>()
 
+    private var onItemClickListener: ((Secret) -> Unit)? = null
+
+    fun setOnItemClickListener(listener: (Secret) -> Unit) {
+        onItemClickListener = listener
+    }
+
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val ivAvatar: ImageView = view.findViewById(R.id.iv_avatar)
         val tvUsername: TextView = view.findViewById(R.id.tv_username)
@@ -39,6 +46,9 @@ class SecretAdapter(
         val tvComments: TextView = view.findViewById(R.id.tv_card_comments)
         val btnLike: LinearLayout = view.findViewById(R.id.btn_card_like)
         val ivLikeIcon: ImageView = view.findViewById(R.id.iv_like_icon)
+        val llCardImages: View = view.findViewById(R.id.ll_card_images)
+        val ivCardImage1: ImageView = view.findViewById(R.id.iv_card_image_1)
+        val ivCardImage2: ImageView = view.findViewById(R.id.iv_card_image_2)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -81,6 +91,39 @@ class SecretAdapter(
         holder.tvMood.text = secret.mood
         holder.tvTime.text = secret.timeAgo
         holder.tvContent.text = secret.content
+
+        // Load post image
+        if (secret.imageUrls.isNotEmpty()) {
+            holder.llCardImages.visibility = View.VISIBLE
+            
+            holder.ivCardImage1.visibility = View.VISIBLE
+            Glide.with(context)
+                .load(secret.imageUrls[0])
+                .into(holder.ivCardImage1)
+                
+            holder.ivCardImage1.setOnClickListener {
+                FullScreenImageDialog.show(context, secret.imageUrls[0])
+            }
+                
+            if (secret.imageUrls.size > 1) {
+                // If 2 images, force aspect ratio to square (or just use layout weights properly)
+                // They both have layout_weight="1", height="wrap_content", and scaleType="centerCrop".
+                // Let's set a fixed height programmatically to make them square based on width? Or max height is 200dp.
+                // In xml they have maxHeight 200dp and adjustViewBounds true.
+                holder.ivCardImage2.visibility = View.VISIBLE
+                Glide.with(context)
+                    .load(secret.imageUrls[1])
+                    .into(holder.ivCardImage2)
+                    
+                holder.ivCardImage2.setOnClickListener {
+                    FullScreenImageDialog.show(context, secret.imageUrls[1])
+                }
+            } else {
+                holder.ivCardImage2.visibility = View.GONE
+            }
+        } else {
+            holder.llCardImages.visibility = View.GONE
+        }
 
         // Get counts - never display negative values
         val currentLiked = likedState[secret.id] ?: secret.isLiked
@@ -128,6 +171,11 @@ class SecretAdapter(
 
         // Card click - navigate to detail
         holder.itemView.setOnClickListener {
+            if (onItemClickListener != null) {
+                onItemClickListener?.invoke(secret)
+                return@setOnClickListener
+            }
+
             // Cancel any pending preload for this post
             PostPreloadService.clearPreloaded()
 
@@ -142,6 +190,7 @@ class SecretAdapter(
                 putInt("likes", displayLikes)
                 putInt("comments", displayComments)
                 putBoolean("isLiked", currentLiked)
+                putStringArray("imageUrls", secret.imageUrls.toTypedArray())
             }
             it.findNavController().navigate(R.id.secretDetailFragment, args)
         }
