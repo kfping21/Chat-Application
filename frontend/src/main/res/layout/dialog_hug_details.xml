@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bottom_sheet"
+    android:orientation="vertical"
+    android:paddingTop="24dp">
+
+    <!-- Header Animation / Image area -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:background="#10FF4D4F">
+        
+        <com.zjgsu.treehole.ui.widget.HugAnimationView
+            android:id="@+id/hug_animation_view"
+            android:layout_width="120dp"
+            android:layout_height="100dp"
+            android:layout_gravity="center" />
+    </FrameLayout>
+
+    <!-- User info and Hug count -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="16dp">
+
+        <ImageView
+            android:id="@+id/iv_user_avatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_avatar_circle"
+            android:clipToOutline="true" />
+
+        <TextView
+            android:id="@+id/tv_username"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:textColor="@color/text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:text="用户名" />
+
+        <TextView
+            android:id="@+id/tv_hug_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="收到了 1 个「抱抱」"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/divider"
+        android:layout_marginHorizontal="16dp" />
+
+    <!-- Hug History List -->
+    <LinearLayout
+        android:id="@+id/ll_hug_history"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:paddingBottom="48dp">
+    </LinearLayout>
+
+</LinearLayout>

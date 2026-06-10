@@ -4,11 +4,20 @@ const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const { uploadPost } = require('../config/localStorage');
+const path = require('path');
 
 const router = express.Router();
 
+// Get base URL from request
+const getBaseUrl = (req) => {
+    const protocol = req.protocol;
+    const host = req.get('host');
+    return `${protocol}://${host}`;
+};
+
 // Create a new post
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, uploadPost.array('images', 2), async (req, res) => {
     try {
         const { content, mood } = req.body;
 
@@ -20,10 +29,20 @@ router.post('/', auth, async (req, res) => {
             return res.status(400).json({ message: '内容不能超过2000字' });
         }
 
+        let imageUrls = [];
+        if (req.files && req.files.length > 0) {
+            const baseUrl = getBaseUrl(req);
+            imageUrls = req.files.map(file => `${baseUrl}/uploads/posts/${path.basename(file.path)}`);
+        } else if (req.body.imageUrl) {
+            // For backwards compatibility during transition
+            imageUrls = [req.body.imageUrl];
+        }
+
         const post = new Post({
             userId: req.userId,
             content: content.trim(),
-            mood: mood || '平静'
+            mood: mood || '平静',
+            imageUrls: imageUrls
         });
 
         await post.save();
@@ -68,7 +87,7 @@ router.get('/feed', auth, async (req, res) => {
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
-            .select('_id content mood likes createdAt userId likedBy')
+            .select('_id content mood imageUrls likes createdAt userId likedBy')
             .lean();
 
         // Fetch users in batch
@@ -91,6 +110,7 @@ router.get('/feed', auth, async (req, res) => {
                 id: post._id.toString(),
                 content: post.content,
                 mood: post.mood,
+                imageUrls: post.imageUrls || (post.imageUrl ? [post.imageUrl] : []),
                 likes: post.likes,
                 commentCount: commentCount,
                 createdAt: post.createdAt,
@@ -125,7 +145,7 @@ router.get('/my', auth, async (req, res) => {
         const posts = await Post.find({ userId: req.userId })
             .sort({ createdAt: -1 })
             .limit(10)
-            .select('_id content mood likes createdAt')
+            .select('_id content mood imageUrls likes createdAt')
             .lean();
 
         // Get comment counts for all posts in batch
@@ -140,6 +160,7 @@ router.get('/my', auth, async (req, res) => {
                 id: post._id.toString(),
                 content: post.content,
                 mood: post.mood,
+                imageUrls: post.imageUrls || (post.imageUrl ? [post.imageUrl] : []),
                 likes: post.likes,
                 commentCount: commentCountMap.get(post._id.toString()) || 0,
                 createdAt: post.createdAt
@@ -151,13 +172,29 @@ router.get('/my', auth, async (req, res) => {
     }
 });
 
-// Get user's liked posts
-router.get('/liked', auth, async (req, res) => {
+// Search posts by keyword
+router.get('/search', auth, async (req, res) => {
     try {
-        const posts = await Post.find({ likedBy: req.userId })
+        const query = req.query.q || '';
+        if (!query.trim()) {
+            return res.json({ posts: [] });
+        }
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // Use regex for case-insensitive search
+        const regex = new RegExp(query, 'i');
+        const dbQuery = { content: { $regex: regex } };
+
+        const total = await Post.countDocuments(dbQuery);
+
+        const posts = await Post.find(dbQuery)
             .sort({ createdAt: -1 })
-            .limit(10)
-            .select('_id content mood likes createdAt userId likedBy')
+            .skip(skip)
+            .limit(limit)
+            .select('_id content mood imageUrls likes createdAt userId likedBy')
             .lean();
 
         // Fetch users in batch
@@ -165,7 +202,7 @@ router.get('/liked', auth, async (req, res) => {
         const users = await User.find({ _id: { $in: userIds } }).select('nickname avatar').lean();
         const userMap = new Map(users.map(u => [u._id.toString(), u]));
 
-        // Get comment counts for all posts in batch
+        // Get comment counts
         const commentCounts = await Comment.aggregate([
             { $match: { postId: { $in: posts.map(p => p._id) } } },
             { $group: { _id: '$postId', count: { $sum: 1 } } }
@@ -174,25 +211,36 @@ router.get('/liked', auth, async (req, res) => {
 
         const result = posts.map(post => {
             const user = userMap.get(post.userId.toString());
+            const commentCount = commentCountMap.get(post._id.toString()) || 0;
             return {
                 id: post._id.toString(),
                 content: post.content,
                 mood: post.mood,
+                imageUrls: post.imageUrls || (post.imageUrl ? [post.imageUrl] : []),
                 likes: post.likes,
-                commentCount: commentCountMap.get(post._id.toString()) || 0,
+                commentCount: commentCount,
                 createdAt: post.createdAt,
                 user: user ? {
                     id: user._id.toString(),
                     nickname: user.nickname,
                     avatar: user.avatar
                 } : null,
-                isLiked: true
+                isLiked: post.likedBy.some(id => id.toString() === req.userId)
             };
         });
 
-        res.json({ posts: result });
+        res.json({
+            posts: result,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+                hasMore: skip + posts.length < total
+            }
+        });
     } catch (error) {
-        console.error('Get liked posts error:', error);
+        console.error('Search posts error:', error);
         res.status(500).json({ message: '服务器错误' });
     }
 });
@@ -203,7 +251,7 @@ router.get('/user/:userId', auth, async (req, res) => {
         const posts = await Post.find({ userId: req.params.userId })
             .sort({ createdAt: -1 })
             .limit(10)
-            .select('_id content mood likes createdAt userId likedBy')
+            .select('_id content mood imageUrls likes createdAt userId likedBy')
             .lean();
 
         // Get user info
@@ -221,6 +269,7 @@ router.get('/user/:userId', auth, async (req, res) => {
                 id: post._id.toString(),
                 content: post.content,
                 mood: post.mood,
+                imageUrls: post.imageUrls || (post.imageUrl ? [post.imageUrl] : []),
                 likes: post.likes,
                 commentCount: commentCountMap.get(post._id.toString()) || 0,
                 createdAt: post.createdAt,
@@ -238,11 +287,95 @@ router.get('/user/:userId', auth, async (req, res) => {
     }
 });
 
+// Get user's liked posts (must be before /:id)
+router.get('/liked', auth, async (req, res) => {
+    try {
+        const posts = await Post.find({ likedBy: req.userId })
+            .sort({ createdAt: -1 })
+            .limit(50)
+            .select('_id content mood imageUrls likes createdAt userId likedBy')
+            .lean();
+
+        // Get users in batch
+        const userIds = [...new Set(posts.map(p => p.userId.toString()))];
+        const users = await User.find({ _id: { $in: userIds } }).select('nickname avatar').lean();
+        const userMap = new Map(users.map(u => [u._id.toString(), u]));
+
+        // Get comment counts for all posts in batch
+        const commentCounts = await Comment.aggregate([
+            { $match: { postId: { $in: posts.map(p => p._id) } } },
+            { $group: { _id: '$postId', count: { $sum: 1 } } }
+        ]);
+        const commentCountMap = new Map(commentCounts.map(c => [c._id.toString(), c.count]));
+
+        res.json({
+            posts: posts.map(post => {
+                const user = userMap.get(post.userId.toString());
+                const commentCount = commentCountMap.get(post._id.toString()) || 0;
+                return {
+                    id: post._id.toString(),
+                    content: post.content,
+                    mood: post.mood,
+                    likes: post.likes,
+                    commentCount: commentCount,
+                    createdAt: post.createdAt,
+                    user: user ? {
+                        id: user._id.toString(),
+                        nickname: user.nickname,
+                        avatar: user.avatar
+                    } : null,
+                    isLiked: true
+                };
+            })
+        });
+    } catch (error) {
+        console.error('Get liked posts error:', error);
+        res.status(500).json({ message: '服务器错误' });
+    }
+});
+
+// Get user's comments (must be before /:id)
+router.get('/comments/my', auth, async (req, res) => {
+    try {
+        const comments = await Comment.find({ userId: req.userId })
+            .sort({ createdAt: -1 })
+            .limit(50)
+            .select('_id content createdAt postId')
+            .lean();
+
+        // Get associated posts
+        const postIds = [...new Set(comments.map(c => c.postId.toString()))];
+        const posts = await Post.find({ _id: { $in: postIds } }).select('_id content mood').lean();
+        const postMap = new Map(posts.map(p => [p._id.toString(), p]));
+
+        res.json({
+            comments: comments.map(c => {
+                const post = postMap.get(c.postId.toString());
+                return {
+                    id: c._id.toString(),
+                    content: c.content,
+                    createdAt: c.createdAt,
+                    postId: c.postId.toString(),
+                    post: post ? {
+                        id: post._id.toString(),
+                        content: post.content,
+                        mood: post.mood,
+                        imageUrls: post.imageUrls || (post.imageUrl ? [post.imageUrl] : [])
+                    } : null
+                };
+            })
+        });
+    } catch (error) {
+        console.error('Get my comments error:', error);
+        res.status(500).json({ message: '服务器错误' });
+    }
+});
+
 // Get single post with comments
 router.get('/:id', auth, async (req, res) => {
     try {
         const post = await Post.findById(req.params.id)
-            .select('_id content mood likes createdAt userId likedBy')
+            .select('_id content mood imageUrls likes createdAt userId likedBy')
             .lean();
 
         if (!post) {
@@ -268,6 +401,7 @@ router.get('/:id', auth, async (req, res) => {
                 id: post._id.toString(),
                 content: post.content,
                 mood: post.mood,
+                imageUrls: post.imageUrls || (post.imageUrl ? [post.imageUrl] : []),
                 likes: post.likes,
                 createdAt: post.createdAt,
                 user: user ? {
@@ -437,38 +571,132 @@ router.delete('/:id', auth, async (req, res) => {
     }
 });
 
-// Get user's comments
-router.get('/comments/my', auth, async (req, res) => {
+// Update a post
+router.put('/:id', auth, async (req, res) => {
     try {
-        const comments = await Comment.find({ userId: req.userId })
-            .sort({ createdAt: -1 })
-            .limit(10)
-            .select('_id content createdAt postId')
-            .lean();
+        const { content, mood } = req.body;
 
-        // Get post info for each comment
-        const postIds = [...new Set(comments.map(c => c.postId.toString()))];
-        const posts = await Post.find({ _id: { $in: postIds } }).select('_id content mood').lean();
-        const postMap = new Map(posts.map(p => [p._id.toString(), p]));
+        if (!content || content.trim().length === 0) {
+            return res.status(400).json({ message: '内容不能为空' });
+        }
 
-        const result = comments.map(comment => {
-            const post = postMap.get(comment.postId.toString());
-            return {
+        if (content.length > 2000) {
+            return res.status(400).json({ message: '内容不能超过2000字' });
+        }
+
+        const post = await Post.findById(req.params.id);
+
+        if (!post) {
+            return res.status(404).json({ message: '帖子不存在' });
+        }
+
+        // Check ownership
+        if (post.userId.toString() !== req.userId) {
+            return res.status(403).json({ message: '无权修改此帖子' });
+        }
+
+        post.content = content.trim();
+        if (mood) {
+            post.mood = mood;
+        }
+        await post.save();
+
+        // Get user info
+        const user = await User.findById(post.userId).select('nickname avatar').lean();
+
+        res.json({
+            message: '更新成功',
+            post: {
+                id: post._id.toString(),
+                content: post.content,
+                mood: post.mood,
+                imageUrls: post.imageUrls || (post.imageUrl ? [post.imageUrl] : []),
+                likes: post.likes,
+                createdAt: post.createdAt,
+                user: user ? {
+                    id: user._id.toString(),
+                    nickname: user.nickname,
+                    avatar: user.avatar
+                } : null,
+                isLiked: post.likedBy.some(id => id.toString() === req.userId)
+            }
+        });
+    } catch (error) {
+        console.error('Update post error:', error);
+        res.status(500).json({ message: '服务器错误' });
+    }
+});
+
+// Update a comment
+router.put('/comments/:id', auth, async (req, res) => {
+    try {
+        const { content } = req.body;
+
+        if (!content || content.trim().length === 0) {
+            return res.status(400).json({ message: '评论内容不能为空' });
+        }
+
+        const comment = await Comment.findById(req.params.id);
+
+        if (!comment) {
+            return res.status(404).json({ message: '评论不存在' });
+        }
+
+        // Check ownership
+        if (comment.userId.toString() !== req.userId) {
+            return res.status(403).json({ message: '无权修改此评论' });
+        }
+
+        comment.content = content.trim();
+        await comment.save();
+
+        // Get user info
+        const user = await User.findById(comment.userId).select('nickname avatar').lean();
+
+        res.json({
+            comment: {
                 id: comment._id.toString(),
                 content: comment.content,
                 createdAt: comment.createdAt,
-                postId: comment.postId.toString(),
-                post: post ? {
-                    id: post._id.toString(),
-                    content: post.content,
-                    mood: post.mood
+                user: user ? {
+                    id: user._id.toString(),
+                    nickname: user.nickname,
+                    avatar: user.avatar
                 } : null
-            };
+            }
         });
-
-        res.json({ comments: result });
     } catch (error) {
-        console.error('Get my comments error:', error);
+        console.error('Update comment error:', error);
+        res.status(500).json({ message: '服务器错误' });
+    }
+});
+
+// Delete a comment
+router.delete('/comments/:id', auth, async (req, res) => {
+    try {
+        const comment = await Comment.findById(req.params.id);
+
+        if (!comment) {
+            return res.status(404).json({ message: '评论不存在' });
+        }
+
+        // Check ownership
+        if (comment.userId.toString() !== req.userId) {
+            return res.status(403).json({ message: '无权删除此评论' });
+        }
+
+        // Delete the comment
+        await Comment.deleteOne({ _id: comment._id });
+
+        // Update post comment count
+        await Post.findByIdAndUpdate(comment.postId, { $inc: { commentCount: -1 } });
+
+        // Delete associated notifications
+        await Notification.deleteMany({ commentId: comment._id });
+
+        res.json({ message: '删除成功' });
+    } catch (error) {
+        console.error('Delete comment error:', error);
         res.status(500).json({ message: '服务器错误' });
     }
 });

@@ -10,7 +10,8 @@ data class Secret(
     val avatar: String = "",
     val nickname: String = "",
     val isLiked: Boolean = false,
-    var userId: String = "" // Author's user ID for chat
+    var userId: String = "", // Author's user ID for chat
+    val imageUrls: List<String> = emptyList()
 )
 
 data class Comment(

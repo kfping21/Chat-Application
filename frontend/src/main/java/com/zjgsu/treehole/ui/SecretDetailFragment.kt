@@ -39,11 +39,13 @@ class SecretDetailFragment : Fragment() {
     private var likeCount = 0
     private var isTogglingLike = false
 
+    // Data passed from feed
     private var passedNickname = ""
     private var passedAvatar = ""
     private var passedContent = ""
     private var passedMood = ""
     private var passedTimeAgo = ""
+    private var passedImageUrls: Array<String> = emptyArray()
     private var passedLikes = 0
     private var passedComments = 0
     private var passedIsLiked = false
@@ -62,8 +64,8 @@ class SecretDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        currentUserId = TokenManager.getUserId() ?: ""
         postId = arguments?.getString("secretId") ?: ""
+        currentUserId = TokenManager.getUserId() ?: ""
 
         passedUserId = arguments?.getString("userId") ?: ""
         passedNickname = arguments?.getString("nickname") ?: ""
@@ -71,6 +73,7 @@ class SecretDetailFragment : Fragment() {
         passedContent = arguments?.getString("content") ?: ""
         passedMood = arguments?.getString("mood") ?: "平静"
         passedTimeAgo = arguments?.getString("timeAgo") ?: ""
+        passedImageUrls = arguments?.getStringArray("imageUrls") ?: emptyArray()
         passedLikes = arguments?.getInt("likes") ?: 0
         passedComments = arguments?.getInt("comments") ?: 0
         passedIsLiked = arguments?.getBoolean("isLiked") ?: false
@@ -85,9 +88,9 @@ class SecretDetailFragment : Fragment() {
 
         val btnBack = view.findViewById<ImageButton>(R.id.btn_back)
         val btnShare = view.findViewById<ImageButton>(R.id.btn_share_detail)
-        val btnMore = view.findViewById<ImageButton>(R.id.btn_more_detail)
         val etComment = view.findViewById<EditText>(R.id.et_comment)
         val btnSend = view.findViewById<ImageButton>(R.id.btn_send_comment)
+        val btnMore = view.findViewById<ImageButton>(R.id.btn_more_detail)
 
         try {
             ClickAnimations.addButtonPressAnimation(btnLike)
@@ -96,10 +99,16 @@ class SecretDetailFragment : Fragment() {
             ClickAnimations.addButtonPressAnimation(btnMore)
         } catch (e: Exception) { /* Ignore animation errors */ }
 
+        btnMore.setOnClickListener {
+            showPostOptions()
+        }
+
+        // Avatar click - navigate to user profile
         ivDetailAvatar.setOnClickListener {
             navigateToUserProfile()
         }
 
+        // Username click - navigate to user profile
         val tvDetailUsername = view.findViewById<TextView>(R.id.tv_detail_username)
         tvDetailUsername.setOnClickListener {
             navigateToUserProfile()
@@ -111,10 +120,6 @@ class SecretDetailFragment : Fragment() {
 
         btnShare.setOnClickListener {
             Toast.makeText(requireContext(), "分享功能即将上线 ✨", Toast.LENGTH_SHORT).show()
-        }
-
-        btnMore.setOnClickListener {
-            showPostOptions()
         }
 
         btnSend.setOnClickListener {
@@ -132,9 +137,69 @@ class SecretDetailFragment : Fragment() {
             toggleLike()
         }
 
+        // Step 1: Show passed data immediately (instant display)
         showPassedData()
+
+        // Step 2: Try to load from cache (fast display)
         loadFromCache()
+
+        // Step 3: Then load fresh data from server (update data)
         loadPost()
+    }
+
+    private fun showPassedData() {
+        requireView().apply {
+            findViewById<TextView>(R.id.tv_detail_mood).text = passedMood
+            findViewById<TextView>(R.id.tv_detail_time).text = passedTimeAgo
+            findViewById<TextView>(R.id.tv_detail_content).text = passedContent
+            findViewById<TextView>(R.id.tv_like_count).text = likeCount.toString()
+            findViewById<TextView>(R.id.tv_echoes_count).text = "回响 $passedComments"
+            findViewById<TextView>(R.id.tv_detail_username).text = passedNickname.ifEmpty { "匿名用户" }
+            findViewById<TextView>(R.id.tv_comment_count).text = passedComments.toString()
+
+            val ivAvatar = findViewById<ImageView>(R.id.iv_detail_avatar)
+            AvatarLoader.loadAvatar(requireContext(), passedAvatar, ivAvatar)
+
+            val llImages = findViewById<View>(R.id.ll_detail_images)
+            val ivImage1 = findViewById<ImageView>(R.id.iv_detail_image_1)
+            val ivImage2 = findViewById<ImageView>(R.id.iv_detail_image_2)
+
+            if (passedImageUrls.isNotEmpty()) {
+                llImages.visibility = View.VISIBLE
+                
+                ivImage1.visibility = View.VISIBLE
+                com.bumptech.glide.Glide.with(requireContext())
+                    .load(passedImageUrls[0])
+                    .into(ivImage1)
+
+                ivImage1.setOnClickListener {
+                    FullScreenImageDialog.show(requireContext(), passedImageUrls[0])
+                }
+
+                if (passedImageUrls.size > 1) {
+                    ivImage2.visibility = View.VISIBLE
+                    com.bumptech.glide.Glide.with(requireContext())
+                        .load(passedImageUrls[1])
+                        .into(ivImage2)
+                        
+                    ivImage2.setOnClickListener {
+                        FullScreenImageDialog.show(requireContext(), passedImageUrls[1])
+                    }
+                } else {
+                    ivImage2.visibility = View.GONE
+                }
+            } else {
+                llImages.visibility = View.GONE
+            }
+
+            ivLikeIcon.setColorFilter(
+                if (isLiked) ContextCompat.getColor(requireContext(), R.color.unread_badge)
+                else ContextCompat.getColor(requireContext(), R.color.text_muted)
+            )
+
+            val btnMore = findViewById<ImageButton>(R.id.btn_more_detail)
+            btnMore.visibility = if (passedUserId == currentUserId) View.VISIBLE else View.GONE
+        }
     }
 
     private fun showPostOptions() {
@@ -268,29 +333,6 @@ class SecretDetailFragment : Fragment() {
         }
     }
 
-    private fun showPassedData() {
-        requireView().apply {
-            findViewById<TextView>(R.id.tv_detail_mood).text = passedMood
-            findViewById<TextView>(R.id.tv_detail_time).text = passedTimeAgo
-            findViewById<TextView>(R.id.tv_detail_content).text = passedContent
-            findViewById<TextView>(R.id.tv_like_count).text = likeCount.toString()
-            findViewById<TextView>(R.id.tv_echoes_count).text = "回响 $passedComments"
-            findViewById<TextView>(R.id.tv_detail_username).text = passedNickname.ifEmpty { "匿名用户" }
-            findViewById<TextView>(R.id.tv_comment_count).text = passedComments.toString()
-
-            val ivAvatar = findViewById<ImageView>(R.id.iv_detail_avatar)
-            AvatarLoader.loadAvatar(requireContext(), passedAvatar, ivAvatar)
-
-            ivLikeIcon.setColorFilter(
-                if (isLiked) ContextCompat.getColor(requireContext(), R.color.unread_badge)
-                else ContextCompat.getColor(requireContext(), R.color.text_muted)
-            )
-
-            val btnMore = findViewById<ImageButton>(R.id.btn_more_detail)
-            btnMore.visibility = if (passedUserId == currentUserId) View.VISIBLE else View.GONE
-        }
-    }
-
     private fun loadFromCache() {
         val cached = PostCacheManager.getPostDetail(postId)
         if (cached != null && PostCacheManager.isPostDetailCacheValid(postId)) {
@@ -337,16 +379,28 @@ class SecretDetailFragment : Fragment() {
                         val post = data.post
                         val comments = data.comments
 
-                        if (!isTogglingLike) {
-                            isLiked = post.isLiked
-                            likeCount = post.likes
-                        }
-
                         passedUserId = post.user?.id ?: ""
                         passedNickname = post.user?.nickname ?: ""
                         passedAvatar = post.user?.avatar ?: ""
                         passedContent = post.content
                         passedMood = post.mood
+
+                        com.zjgsu.treehole.cache.HistoryManager.addHistory(
+                            requireContext(),
+                            com.zjgsu.treehole.cache.HistoryItem(
+                                id = postId,
+                                content = post.content,
+                                mood = post.mood,
+                                timeAgo = parseTimeAgo(post.createdAt),
+                                avatar = post.user?.avatar ?: "",
+                                nickname = post.user?.nickname ?: "匿名用户"
+                            )
+                        )
+
+                        if (!isTogglingLike) {
+                            isLiked = post.isLiked
+                            likeCount = post.likes
+                        }
 
                         requireView().apply {
                             findViewById<TextView>(R.id.tv_detail_mood).text = post.mood
@@ -360,6 +414,38 @@ class SecretDetailFragment : Fragment() {
                             val avatar = post.user?.avatar ?: ""
                             val ivAvatar = findViewById<ImageView>(R.id.iv_detail_avatar)
                             AvatarLoader.loadAvatar(requireContext(), avatar, ivAvatar)
+
+                            val llImages = findViewById<View>(R.id.ll_detail_images)
+                            val ivImage1 = findViewById<ImageView>(R.id.iv_detail_image_1)
+                            val ivImage2 = findViewById<ImageView>(R.id.iv_detail_image_2)
+
+                            if (post.imageUrls.isNotEmpty()) {
+                                llImages.visibility = View.VISIBLE
+                                
+                                ivImage1.visibility = View.VISIBLE
+                                com.bumptech.glide.Glide.with(requireContext())
+                                    .load(post.imageUrls[0])
+                                    .into(ivImage1)
+                                    
+                                ivImage1.setOnClickListener {
+                                    FullScreenImageDialog.show(requireContext(), post.imageUrls[0])
+                                }
+
+                                if (post.imageUrls.size > 1) {
+                                    ivImage2.visibility = View.VISIBLE
+                                    com.bumptech.glide.Glide.with(requireContext())
+                                        .load(post.imageUrls[1])
+                                        .into(ivImage2)
+                                        
+                                    ivImage2.setOnClickListener {
+                                        FullScreenImageDialog.show(requireContext(), post.imageUrls[1])
+                                    }
+                                } else {
+                                    ivImage2.visibility = View.GONE
+                                }
+                            } else {
+                                llImages.visibility = View.GONE
+                            }
 
                             ivLikeIcon.setColorFilter(
                                 if (isLiked) ContextCompat.getColor(requireContext(), R.color.unread_badge)
@@ -417,6 +503,7 @@ class SecretDetailFragment : Fragment() {
         val newIsLiked = !isLiked
         val newLikeCount = if (newIsLiked) likeCount + 1 else likeCount - 1
 
+        // Optimistic update
         isLiked = newIsLiked
         likeCount = newLikeCount
         requireView().findViewById<TextView>(R.id.tv_like_count).text = likeCount.toString()
@@ -466,6 +553,7 @@ class SecretDetailFragment : Fragment() {
     }
 
     private fun navigateToUserProfile() {
+        val currentUserId = TokenManager.getUserId() ?: ""
         if (passedUserId.isNotEmpty() && passedUserId != currentUserId) {
             val bundle = Bundle().apply {
                 putString("userId", passedUserId)

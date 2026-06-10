@@ -15,6 +15,9 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.navigation.fragment.findNavController
+import androidx.navigation.NavController
+import androidx.navigation.Navigation
 import com.bumptech.glide.Glide
 import com.zjgsu.treehole.R
 import com.zjgsu.treehole.cache.PostCacheManager
@@ -41,9 +44,14 @@ class SidebarFragment : androidx.fragment.app.DialogFragment(), CoroutineScope {
     private lateinit var tvFollowing: TextView
     private lateinit var tvFollowers: TextView
     private var onDismissListener: (() -> Unit)? = null
+    private var onLogoutListener: (() -> Unit)? = null
 
     fun setOnDismissListener(listener: () -> Unit) {
         onDismissListener = listener
+    }
+
+    fun setOnLogoutListener(listener: () -> Unit) {
+        onLogoutListener = listener
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -91,14 +99,16 @@ class SidebarFragment : androidx.fragment.app.DialogFragment(), CoroutineScope {
             showEditProfileDialog()
         }
 
-        // Change Password
-        view.findViewById<LinearLayout>(R.id.sidebar_change_password).setOnClickListener {
-            showChangePasswordDialog()
+        // Browsing History
+        view.findViewById<LinearLayout>(R.id.sidebar_history).setOnClickListener {
+            val bottomSheet = HistoryBottomSheet()
+            bottomSheet.show(childFragmentManager, "HistoryBottomSheet")
         }
 
-        // Privacy
-        view.findViewById<LinearLayout>(R.id.sidebar_privacy).setOnClickListener {
-            showPrivacyDialog()
+        // Drafts
+        view.findViewById<LinearLayout>(R.id.sidebar_drafts).setOnClickListener {
+            val bottomSheet = DraftsBottomSheet()
+            bottomSheet.show(childFragmentManager, "DraftsBottomSheet")
         }
 
         // Theme
@@ -106,14 +116,16 @@ class SidebarFragment : androidx.fragment.app.DialogFragment(), CoroutineScope {
             showThemeDialog()
         }
 
-        // Storage
-        view.findViewById<LinearLayout>(R.id.sidebar_storage).setOnClickListener {
-            showStorageInfoDialog()
+        // Settings Center (opens BottomSheet)
+        view.findViewById<LinearLayout>(R.id.sidebar_settings_center).setOnClickListener {
+            val bottomSheet = SettingsBottomSheet()
+            bottomSheet.show(childFragmentManager, SettingsBottomSheet.TAG)
         }
 
-        // About
-        view.findViewById<LinearLayout>(R.id.sidebar_about).setOnClickListener {
-            showAboutDialog()
+        // Help
+        view.findViewById<LinearLayout>(R.id.sidebar_help).setOnClickListener {
+            val bottomSheet = FeedbackBottomSheet()
+            bottomSheet.show(childFragmentManager, "FeedbackBottomSheet")
         }
 
         // Logout
@@ -348,53 +360,12 @@ class SidebarFragment : androidx.fragment.app.DialogFragment(), CoroutineScope {
             .setSingleChoiceItems(themeOptions, currentIndex) { dialog, which ->
                 val selectedMode = modeValues[which]
                 TokenManager.setThemeMode(selectedMode)
+                // This automatically triggers recreation if the uiMode changes
                 AppCompatDelegate.setDefaultNightMode(selectedMode)
                 dialog.dismiss()
-                requireActivity().recreate()
             }
             .setNegativeButton("取消", null)
             .show()
-    }
-
-    private fun showStorageInfoDialog() {
-        val externalDir = Environment.getExternalStorageDirectory()
-        val totalSpace = externalDir.totalSpace
-        val freeSpace = externalDir.freeSpace
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("存储空间")
-            .setMessage(
-                "设备存储:\n" +
-                        "  总容量: ${(totalSpace / 1024 / 1024 / 1024)} GB\n" +
-                        "  可用空间: ${(freeSpace / 1024 / 1024 / 1024)} GB"
-            )
-            .setNegativeButton("取消", null)
-            .setPositiveButton("清理缓存") { _, _ ->
-                PostCacheManager.clearCache()
-                Toast.makeText(requireContext(), "缓存已清理", Toast.LENGTH_SHORT).show()
-            }
-            .show()
-    }
-
-    private fun showAboutDialog() {
-        AlertDialog.Builder(requireContext())
-            .setTitle("关于树洞")
-            .setMessage(
-                "树洞 v${resolveAppVersionName()}\n\n" +
-                        "实时后端: ${RetrofitClient.BASE_URL}\n\n" +
-                        "一个倾听与表达的匿名空间，在这里可以分享你的心事，与志同道合的人交流。"
-            )
-            .setPositiveButton("确定", null)
-            .show()
-    }
-
-    private fun resolveAppVersionName(): String {
-        return try {
-            val packageInfo = requireContext().packageManager.getPackageInfo(requireContext().packageName, 0)
-            packageInfo.versionName ?: "unknown"
-        } catch (_: Exception) {
-            "unknown"
-        }
     }
 
     private fun showLogoutConfirmDialog() {
@@ -407,8 +378,10 @@ class SidebarFragment : androidx.fragment.app.DialogFragment(), CoroutineScope {
                 PostCacheManager.clearCache()
                 TokenManager.clear()
                 Toast.makeText(requireContext(), "已退出登录", Toast.LENGTH_SHORT).show()
-                dismiss()
-                requireActivity().finish()
+                dismissAllowingStateLoss()
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    onLogoutListener?.invoke()
+                }, 500)
             }
             .show()
     }

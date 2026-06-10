@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp">
+
+    <!-- Circle background with Emoji -->
+    <FrameLayout
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:background="@drawable/bg_circle_empty_state">
+        
+        <TextView
+            android:id="@+id/tv_empty_emoji"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="📭"
+            android:textSize="48sp" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/tv_empty_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="暂无内容"
+        android:textColor="@color/text_muted"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:lineSpacingExtra="4dp" />
+        
+</LinearLayout>

@@ -11,13 +11,16 @@ data class PartyRoomDto(
     val id: String,
     val name: String,
     val subtitle: String,
+    val tag: String = "",
+    val creatorId: String = "",
     val participantCount: Int = 0,
     val maxParticipants: Int = 6,
     val onlineCount: Int,
     val heat: Int,
     val messageCount: Int,
     val lastMessage: String,
-    val lastMessageAt: String?
+    val lastMessageAt: String?,
+    val avatars: List<String>? = null
 )
 
 data class PartyRoomsResponse(
@@ -48,8 +51,11 @@ data class PartyRoomInfoDto(
     val id: String,
     val name: String,
     val subtitle: String,
+    val creatorId: String = "",
     val participantCount: Int = 0,
-    val maxParticipants: Int = 6
+    val maxParticipants: Int = 6,
+    val isCreator: Boolean = false,
+    val participants: List<com.zjgsu.treehole.network.ExploreUserDto>? = emptyList()
 )
 
 data class PartyMessagesResponse(
@@ -86,6 +92,11 @@ interface PartyApi {
 
     @POST("api/party/rooms/{roomId}/leave")
     suspend fun leaveRoom(
+        @Path("roomId") roomId: String
+    ): Response<MessageResponse>
+
+    @POST("api/party/rooms/{roomId}/dismiss")
+    suspend fun dismissRoom(
         @Path("roomId") roomId: String
     ): Response<MessageResponse>
 

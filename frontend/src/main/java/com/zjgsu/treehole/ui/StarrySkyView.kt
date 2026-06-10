@@ -45,7 +45,7 @@ class StarrySkyView @JvmOverloads constructor(
         0xFFC4B5FD.toInt(), 0xFF86EFAC.toInt(), 0xFFFDE68A.toInt()
     )
     private var souls: List<SphereSoul> = emptyList()
-    private var points: List<FloatArray> = emptyList()
+    private var points: List<FloatArray> = buildFibonacciPoints(souls.size)
     private var projectedNodes: List<ProjectedNode> = emptyList()
 
     private var rotateY = 0.22f
@@ -70,17 +70,11 @@ class StarrySkyView @JvmOverloads constructor(
     private val haloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
-        textSize = 11f * density
+        textSize = 10f * density
         textAlign = Paint.Align.CENTER
     }
 
-    private val stars = List(120) { i ->
-        floatArrayOf(
-            ((i * 73) % 1000) / 1000f,
-            ((i * 211) % 1000) / 1000f,
-            ((i * 37) % 10) / 10f + 0.4f
-        )
-    }
+    // Removed background stars array
 
     private val animator = ValueAnimator.ofFloat(0f, 1f).apply {
         duration = 16L
@@ -102,7 +96,7 @@ class StarrySkyView @JvmOverloads constructor(
 
     fun setSouls(list: List<SphereSoul>) {
         souls = list
-        points = buildFibonacciPoints(list.size)
+        points = buildFibonacciPoints(souls.size)
         invalidate()
     }
 
@@ -125,6 +119,7 @@ class StarrySkyView @JvmOverloads constructor(
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 dragging = true
+                parent.requestDisallowInterceptTouchEvent(true)
                 lastTouchX = event.x
                 lastTouchY = event.y
                 velocityX = 0f
@@ -168,10 +163,9 @@ class StarrySkyView @JvmOverloads constructor(
         val w = width.toFloat()
         val h = height.toFloat()
         val cx = w * 0.5f
-        val cy = h * 0.54f
+        val cy = h * 0.48f
         val sphereR = min(w, h) * 0.38f
 
-        drawBackgroundStars(canvas, w, h)
         drawSphere(canvas, cx, cy, sphereR)
 
         val projected = projectNodes(cx, cy, sphereR).sortedBy { it.z }
@@ -181,10 +175,11 @@ class StarrySkyView @JvmOverloads constructor(
             drawNode(canvas, node)
         }
         projected.forEach { node ->
-            if (node.z > -0.08f) {
+            if (node.z > -0.2f) {
                 val soul = souls[node.index]
                 textPaint.alpha = (140 + ((node.z + 1f) * 55f)).toInt().coerceIn(100, 255)
-                canvas.drawText(soul.nickname, node.x, node.y - node.radius - 7f * density, textPaint)
+                textPaint.textSize = (8f + (node.z + 1f) * 2f) * density
+                canvas.drawText(soul.nickname, node.x, node.y - node.radius - 5f * density, textPaint)
             }
         }
     }
@@ -234,46 +229,18 @@ class StarrySkyView @JvmOverloads constructor(
 
             val perspective = camera / (camera - z2)
             val px = cx + x1 * r * perspective
-            val py = cy + y2 * r * 0.78f * perspective
+            val py = cy + y2 * r * 0.98f * perspective
             val scale = (0.55f + (z2 + 1f) * 0.45f).coerceIn(0.55f, 1.6f)
-            val size = (3.6f + scale * 3.4f) * density
+            val size = (1.5f + scale * 2.5f) * density
             val color = palette[kotlin.math.abs(souls[index].id.hashCode()) % palette.size]
             ProjectedNode(index, px.toFloat(), py.toFloat(), size.toFloat(), z2.toFloat(), color)
         }
     }
 
-    private fun drawBackgroundStars(canvas: Canvas, w: Float, h: Float) {
-        stars.forEachIndexed { i, s ->
-            val tw = (sin((rotateY * 8f) + i * 0.31f) + 1f) * 0.5f
-            starPaint.alpha = (50 + tw * 145).toInt().coerceIn(40, 200)
-            canvas.drawCircle(s[0] * w, s[1] * h, s[2] * density * 0.45f, starPaint)
-        }
-    }
+    // Removed drawBackgroundStars
 
     private fun drawSphere(canvas: Canvas, cx: Float, cy: Float, r: Float) {
-        spherePaint.shader = RadialGradient(
-            cx,
-            cy - r * 0.22f,
-            r * 1.2f,
-            intArrayOf(0x3C6EA8FF, 0x1C27418A, 0x00000000),
-            floatArrayOf(0f, 0.55f, 1f),
-            Shader.TileMode.CLAMP
-        )
-        canvas.drawCircle(cx, cy, r * 1.1f, spherePaint)
-
-        canvas.drawOval(cx - r, cy - r * 0.76f, cx + r, cy + r * 0.76f, ringPaint)
-        for (i in 1..3) {
-            val ratio = i / 4f
-            val ry = r * (0.72f - ratio * 0.14f)
-            ringPaint.alpha = 24 + (3 - i) * 12
-            canvas.drawOval(cx - r * (1f - ratio * 0.12f), cy - ry, cx + r * (1f - ratio * 0.12f), cy + ry, ringPaint)
-        }
-        for (i in 1..3) {
-            val ratio = i / 4f
-            val rx = r * ratio
-            ringPaint.alpha = 20
-            canvas.drawOval(cx - rx, cy - r * 0.76f, cx + rx, cy + r * 0.76f, ringPaint)
-        }
+        // Removed sphere background and orbit rings for a more seamless starry sky effect
     }
 
     private fun drawNode(canvas: Canvas, node: ProjectedNode) {

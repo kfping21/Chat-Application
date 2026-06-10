@@ -8,8 +8,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import android.widget.CheckBox
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -19,16 +23,20 @@ import com.bumptech.glide.Glide
 import com.zjgsu.treehole.R
 import com.zjgsu.treehole.adapter.CommentListAdapter
 import com.zjgsu.treehole.adapter.SecretAdapter
+import com.zjgsu.treehole.cache.PostCacheManager
 import com.zjgsu.treehole.model.MyComment
 import com.zjgsu.treehole.model.Secret
 import com.zjgsu.treehole.network.MyCommentDto
 import com.zjgsu.treehole.network.RetrofitClient
 import com.zjgsu.treehole.network.TokenManager
+import com.zjgsu.treehole.network.WhisperWebSocket
 import com.zjgsu.treehole.util.AvatarLoader
 import com.zjgsu.treehole.util.TimeUtils
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.text.SimpleDateFormat
+import java.util.*
 
 class MyHollowFragment : Fragment() {
 
@@ -57,9 +65,9 @@ class MyHollowFragment : Fragment() {
     private val myLikedPosts = mutableListOf<Secret>()
     private val myComments = mutableListOf<MyComment>()
 
-    private lateinit var tvEmptySecrets: TextView
-    private lateinit var tvEmptyLiked: TextView
-    private lateinit var tvEmptyComments: TextView
+    private var tvEmptySecrets: View? = null
+    private var tvEmptyLiked: View? = null
+    private var tvEmptyComments: View? = null
     private lateinit var btnMenu: ImageView
 
     override fun onCreateView(
@@ -80,11 +88,20 @@ class MyHollowFragment : Fragment() {
         tvStatSecrets = view.findViewById(R.id.tv_stat_secrets)
         tvStatEchoes = view.findViewById(R.id.tv_stat_echoes)
         tvStatSouls = view.findViewById(R.id.tv_stat_souls)
+
         btnMenu = view.findViewById(R.id.btn_menu)
 
-        tvEmptySecrets = view.findViewById(R.id.tv_empty_secrets)
-        tvEmptyLiked = view.findViewById(R.id.tv_empty_liked)
-        tvEmptyComments = view.findViewById(R.id.tv_empty_comments)
+        tvEmptySecrets = view.findViewById<View>(R.id.tv_empty_secrets)
+        tvEmptySecrets?.findViewById<TextView>(R.id.tv_empty_text)?.text = "暂无秘密"
+        tvEmptySecrets?.findViewById<TextView>(R.id.tv_empty_emoji)?.text = "🍃"
+        
+        tvEmptyLiked = view.findViewById<View>(R.id.tv_empty_liked)
+        tvEmptyLiked?.findViewById<TextView>(R.id.tv_empty_text)?.text = "暂无点赞"
+        tvEmptyLiked?.findViewById<TextView>(R.id.tv_empty_emoji)?.text = "💔"
+        
+        tvEmptyComments = view.findViewById<View>(R.id.tv_empty_comments)
+        tvEmptyComments?.findViewById<TextView>(R.id.tv_empty_text)?.text = "暂无评论"
+        tvEmptyComments?.findViewById<TextView>(R.id.tv_empty_emoji)?.text = "💬"
 
         tabSecrets = view.findViewById(R.id.tab_secrets)
         tabLiked = view.findViewById(R.id.tab_liked)
@@ -93,6 +110,7 @@ class MyHollowFragment : Fragment() {
         avatar = TokenManager.getAvatar() ?: ""
         nickname = TokenManager.getNickname() ?: ""
 
+        // Load avatar and nickname
         if (avatar.isNotEmpty()) {
             if (avatar.startsWith("preset_")) {
                 val presetId = resources.getIdentifier(avatar, "drawable", requireContext().packageName)
@@ -126,9 +144,18 @@ class MyHollowFragment : Fragment() {
                 loadMyProfile()
                 loadAllData()
             }
+            sidebar.setOnLogoutListener {
+                val activity = requireActivity()
+                val navHostFragment = activity.supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as androidx.navigation.fragment.NavHostFragment
+                val navController = navHostFragment.navController
+                navController.navigate(R.id.action_my_to_login, null, androidx.navigation.NavOptions.Builder()
+                    .setPopUpTo(R.id.nav_my_hollow, true)
+                    .build())
+            }
             sidebar.show(childFragmentManager, "SidebarFragment")
         }
 
+        // Avatar click to change
         ivAvatar.setOnClickListener {
             val bottomSheet = AvatarPickerBottomSheet()
             bottomSheet.setOnAvatarSelectedListener { avatarUrl ->
@@ -137,10 +164,12 @@ class MyHollowFragment : Fragment() {
             bottomSheet.show(childFragmentManager, AvatarPickerBottomSheet.TAG)
         }
 
+        // Username click to edit
         tvUsername.setOnClickListener {
             showNicknameEditDialog(tvUsername)
         }
 
+        // Click listeners for following/followers stats
         tvStatFollowing.setOnClickListener {
             val userId = TokenManager.getUserId() ?: return@setOnClickListener
             navigateToFollowList(userId, "following", "我的关注")
@@ -150,6 +179,17 @@ class MyHollowFragment : Fragment() {
             val userId = TokenManager.getUserId() ?: return@setOnClickListener
             navigateToFollowList(userId, "followers", "我的粉丝")
         }
+    }
+
+    private fun navigateToFollowList(userId: String, type: String, title: String) {
+        findNavController().navigate(
+            R.id.action_my_hollow_to_follow_list,
+            Bundle().apply {
+                putString("userId", userId)
+                putString("type", type)
+                putString("title", title)
+            }
+        )
     }
 
     private fun setupRecyclerViews() {
@@ -162,7 +202,14 @@ class MyHollowFragment : Fragment() {
         rvMyLiked.adapter = likedAdapter
 
         rvMyComments.layoutManager = LinearLayoutManager(requireContext())
-        commentsAdapter = CommentListAdapter(myComments, { commentId, content -> editComment(commentId, content) }, { commentId -> deleteComment(commentId) })
+        commentsAdapter = CommentListAdapter(
+            myComments,
+            { commentId, content -> editComment(commentId, content) },
+            { commentId -> deleteComment(commentId) },
+            { postId ->
+                findNavController().navigate(R.id.secretDetailFragment, bundleOf("secretId" to postId))
+            }
+        )
         rvMyComments.adapter = commentsAdapter
     }
 
@@ -170,9 +217,9 @@ class MyHollowFragment : Fragment() {
         rvMySecrets.visibility = View.GONE
         rvMyLiked.visibility = View.GONE
         rvMyComments.visibility = View.GONE
-        tvEmptySecrets.visibility = View.GONE
-        tvEmptyLiked.visibility = View.GONE
-        tvEmptyComments.visibility = View.GONE
+        tvEmptySecrets?.visibility = View.GONE
+        tvEmptyLiked?.visibility = View.GONE
+        tvEmptyComments?.visibility = View.GONE
 
         tabSecrets.setBackgroundResource(R.drawable.bg_button_ghost)
         tabSecrets.setTextColor(resources.getColor(R.color.text_muted))
@@ -186,7 +233,7 @@ class MyHollowFragment : Fragment() {
                 tabSecrets.setBackgroundResource(R.drawable.bg_button_golden)
                 tabSecrets.setTextColor(resources.getColor(R.color.bg_deep))
                 if (mySecrets.isEmpty()) {
-                    tvEmptySecrets.visibility = View.VISIBLE
+                    tvEmptySecrets?.visibility = View.VISIBLE
                 } else {
                     rvMySecrets.visibility = View.VISIBLE
                 }
@@ -195,7 +242,7 @@ class MyHollowFragment : Fragment() {
                 tabLiked.setBackgroundResource(R.drawable.bg_button_golden)
                 tabLiked.setTextColor(resources.getColor(R.color.bg_deep))
                 if (myLikedPosts.isEmpty()) {
-                    tvEmptyLiked.visibility = View.VISIBLE
+                    tvEmptyLiked?.visibility = View.VISIBLE
                 } else {
                     rvMyLiked.visibility = View.VISIBLE
                 }
@@ -204,7 +251,7 @@ class MyHollowFragment : Fragment() {
                 tabComments.setBackgroundResource(R.drawable.bg_button_golden)
                 tabComments.setTextColor(resources.getColor(R.color.bg_deep))
                 if (myComments.isEmpty()) {
-                    tvEmptyComments.visibility = View.VISIBLE
+                    tvEmptyComments?.visibility = View.VISIBLE
                 } else {
                     rvMyComments.visibility = View.VISIBLE
                 }
@@ -214,46 +261,76 @@ class MyHollowFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        loadMyProfile()
         loadAllData()
     }
 
     private fun loadMyProfile() {
-        viewLifecycleOwner.lifecycleScope.launch {
-            val currentUserId = TokenManager.getUserId()
-            if (currentUserId != null) {
-                try {
-                    val profileResponse = RetrofitClient.authApi.getUserProfile(currentUserId)
-                    if (profileResponse.isSuccessful) {
-                        val profile = profileResponse.body()
-                        activity?.runOnUiThread {
-                            tvStatFollowing.text = profile?.followingCount?.toString() ?: "0"
-                            tvStatFollowers.text = profile?.followersCount?.toString() ?: "0"
-                            tvStatSecrets.text = profile?.postsCount?.toString() ?: "0"
-                            tvStatEchoes.text = profile?.commentsCount?.toString() ?: "0"
-                            tvStatSouls.text = profile?.chatRoomsCount?.toString() ?: "0"
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("MyHollow", "Profile load error: ${e.message}")
-                }
+        avatar = TokenManager.getAvatar() ?: ""
+        nickname = TokenManager.getNickname() ?: ""
+
+        if (avatar.isNotEmpty()) {
+            if (avatar.startsWith("preset_")) {
+                val presetId = resources.getIdentifier(avatar, "drawable", requireContext().packageName)
+                if (presetId != 0) ivAvatar.setImageResource(presetId)
+            } else {
+                Glide.with(this)
+                    .load(avatar)
+                    .circleCrop()
+                    .placeholder(R.drawable.ic_nav_my)
+                    .error(R.drawable.ic_nav_my)
+                    .into(ivAvatar)
             }
+        }
+
+        if (nickname.isNotEmpty()) {
+            tvUsername.text = nickname
         }
     }
 
     private fun loadAllData() {
-        Log.d("MyHollow", "Loading all data...")
-        loadMyPosts()
-        loadMyLikedPosts()
-        loadMyComments()
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val currentUserId = TokenManager.getUserId()
+
+                // Load user profile for follow stats
+                if (currentUserId != null) {
+                    try {
+                        val profileResponse = RetrofitClient.authApi.getUserProfile(currentUserId)
+                        if (profileResponse.isSuccessful) {
+                            val profile = profileResponse.body()
+                            activity?.runOnUiThread {
+                                tvStatFollowing.text = profile?.followingCount?.toString() ?: "0"
+                                tvStatFollowers.text = profile?.followersCount?.toString() ?: "0"
+                                tvStatSecrets.text = profile?.postsCount?.toString() ?: "0"
+                                tvStatEchoes.text = profile?.commentsCount?.toString() ?: "0"
+                                tvStatSouls.text = profile?.chatRoomsCount?.toString() ?: "0"
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("MyHollow", "Profile load error: ${e.message}")
+                    }
+                }
+
+                // Load my posts
+                loadMyPosts()
+                // Load liked posts
+                loadLikedPosts()
+                // Load my comments
+                loadMyComments()
+
+                // Default to secrets tab
+                switchTab(0)
+            } catch (e: Exception) {
+                Log.e("MyHollow", "Load error: ${e.message}")
+            }
+        }
     }
 
     private fun loadMyPosts() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                Log.d("MyHollow", "Loading my posts...")
                 val postsResponse = RetrofitClient.postsApi.getMyPosts()
-                Log.d("MyHollow", "My posts response code: ${postsResponse.code()}")
+
                 mySecrets.clear()
                 postsResponse.body()?.posts?.forEach { post ->
                     mySecrets.add(
@@ -267,64 +344,55 @@ class MyHollowFragment : Fragment() {
                             avatar = avatar,
                             nickname = nickname,
                             isLiked = post.isLiked,
-                            userId = post.user?.id ?: ""
+                            userId = post.user?.id ?: "",
+                            imageUrls = post.imageUrls
                         )
                     )
                 }
-                Log.d("MyHollow", "Loaded ${mySecrets.size} posts")
                 secretsAdapter?.notifyDataSetChanged()
+                
+                // If secrets tab is active, update visibility
+                if (tabSecrets.currentTextColor == resources.getColor(R.color.bg_deep)) {
+                    if (mySecrets.isEmpty()) {
+                        tvEmptySecrets?.visibility = View.VISIBLE
+                        rvMySecrets.visibility = View.GONE
+                    } else {
+                        tvEmptySecrets?.visibility = View.GONE
+                        rvMySecrets.visibility = View.VISIBLE
+                    }
+                }
             } catch (e: Exception) {
-                Log.e("MyHollow", "Load posts error: ${e.message}")
+                Log.e("MyHollow", "Load my posts error: ${e.message}")
             }
         }
     }
 
-    private fun loadMyLikedPosts() {
+    private fun loadLikedPosts() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                Log.d("MyHollow", "Loading liked posts...")
-                val response = RetrofitClient.postsApi.getMyLikedPosts()
-                Log.d("MyHollow", "Liked posts response code: ${response.code()}")
-                Log.d("MyHollow", "Liked posts response body: ${response.body()}")
-                
-                if (response.isSuccessful && response.body() != null) {
-                    myLikedPosts.clear()
-                    val posts = response.body()?.posts ?: emptyList()
-                    Log.d("MyHollow", "Number of liked posts from API: ${posts.size}")
-                    
-                    if (posts.isEmpty()) {
-                        Toast.makeText(requireContext(), "API返回0个点赞帖子", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(requireContext(), "API返回${posts.size}个点赞帖子", Toast.LENGTH_SHORT).show()
-                    }
-                    
-                    posts.forEach { post ->
-                        Log.d("MyHollow", "Found liked post: ${post.id} - ${post.content.take(20)}")
-                        myLikedPosts.add(
-                            Secret(
-                                id = post.id,
-                                content = post.content,
-                                mood = post.mood,
-                                timeAgo = TimeUtils.formatTimeAgo(post.createdAt),
-                                likes = post.likes,
-                                comments = post.commentCount,
-                                avatar = post.user?.avatar ?: "",
-                                nickname = post.user?.nickname ?: "",
-                                isLiked = true,
-                                userId = post.user?.id ?: ""
-                            )
+                val likedResponse = RetrofitClient.postsApi.getLikedPosts()
+
+                myLikedPosts.clear()
+                likedResponse.body()?.posts?.forEach { post ->
+                    myLikedPosts.add(
+                        Secret(
+                            id = post.id,
+                            content = post.content,
+                            mood = post.mood,
+                            timeAgo = TimeUtils.formatTimeAgo(post.createdAt),
+                            likes = post.likes,
+                            comments = post.commentCount,
+                            avatar = post.user?.avatar ?: "",
+                            nickname = post.user?.nickname ?: "",
+                            isLiked = post.isLiked,
+                            userId = post.user?.id ?: "",
+                            imageUrls = post.imageUrls
                         )
-                    }
-                    Log.d("MyHollow", "Loaded ${myLikedPosts.size} liked posts")
-                    likedAdapter?.notifyDataSetChanged()
-                } else {
-                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
-                    Log.e("MyHollow", "Failed to load liked posts. Code: ${response.code()}, Error: $errorBody")
-                    Toast.makeText(requireContext(), "加载点赞失败: ${response.code()}", Toast.LENGTH_SHORT).show()
+                    )
                 }
+                likedAdapter?.notifyDataSetChanged()
             } catch (e: Exception) {
-                Log.e("MyHollow", "Load liked posts error: ${e.message}", e)
-                Toast.makeText(requireContext(), "加载点赞异常: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("MyHollow", "Load liked posts error: ${e.message}")
             }
         }
     }
@@ -332,45 +400,24 @@ class MyHollowFragment : Fragment() {
     private fun loadMyComments() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                Log.d("MyHollow", "Loading my comments...")
-                val response = RetrofitClient.postsApi.getMyComments()
-                Log.d("MyHollow", "Comments response code: ${response.code()}")
-                Log.d("MyHollow", "Comments response body: ${response.body()}")
-                
-                if (response.isSuccessful && response.body() != null) {
-                    myComments.clear()
-                    val comments = response.body()?.comments ?: emptyList()
-                    Log.d("MyHollow", "Number of comments from API: ${comments.size}")
-                    
-                    if (comments.isEmpty()) {
-                        Toast.makeText(requireContext(), "API返回0条评论", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(requireContext(), "API返回${comments.size}条评论", Toast.LENGTH_SHORT).show()
-                    }
-                    
-                    comments.forEach { comment: MyCommentDto ->
-                        Log.d("MyHollow", "Found comment: ${comment.id} - ${comment.content.take(20)}")
-                        myComments.add(
-                            MyComment(
-                                id = comment.id,
-                                content = comment.content,
-                                timeAgo = TimeUtils.formatTimeAgo(comment.createdAt),
-                                postId = comment.postId,
-                                postContent = comment.post?.content ?: "",
-                                mood = comment.post?.mood ?: ""
-                            )
+                val commentsResponse = RetrofitClient.postsApi.getMyComments()
+
+                myComments.clear()
+                commentsResponse.body()?.comments?.forEach { dto ->
+                    myComments.add(
+                        MyComment(
+                            id = dto.id,
+                            content = dto.content,
+                            timeAgo = TimeUtils.formatTimeAgo(dto.createdAt),
+                            postId = dto.postId,
+                            postContent = dto.postContent,
+                            mood = dto.mood
                         )
-                    }
-                    Log.d("MyHollow", "Loaded ${myComments.size} comments")
-                    commentsAdapter?.notifyDataSetChanged()
-                } else {
-                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
-                    Log.e("MyHollow", "Failed to load comments. Code: ${response.code()}, Error: $errorBody")
-                    Toast.makeText(requireContext(), "加载评论失败: ${response.code()}", Toast.LENGTH_SHORT).show()
+                    )
                 }
+                commentsAdapter?.notifyDataSetChanged()
             } catch (e: Exception) {
-                Log.e("MyHollow", "Load comments error: ${e.message}", e)
-                Toast.makeText(requireContext(), "加载评论异常: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("MyHollow", "Load my comments error: ${e.message}")
             }
         }
     }
@@ -391,48 +438,18 @@ class MyHollowFragment : Fragment() {
         }
     }
 
-    private fun showDeleteConfirmDialog(postId: String) {
-        AlertDialog.Builder(requireContext())
-            .setTitle("删除秘密")
-            .setMessage("确定要删除这条秘密吗？删除后无法恢复。")
-            .setNegativeButton("取消", null)
-            .setPositiveButton("删除") { _, _ ->
-                deletePost(postId)
-            }
-            .show()
-    }
-
-    private fun deletePost(postId: String) {
+    private fun editComment(commentId: String, newContent: String) {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val response = RetrofitClient.postsApi.deletePost(postId)
+                val response = RetrofitClient.postsApi.updateComment(commentId, com.zjgsu.treehole.network.AddCommentRequest(newContent))
                 if (response.isSuccessful) {
-                    val index = mySecrets.indexOfFirst { it.id == postId }
-                    if (index >= 0) {
-                        mySecrets.removeAt(index)
-                        secretsAdapter?.notifyItemRemoved(index)
-                    }
-                    Toast.makeText(requireContext(), "删除成功", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(requireContext(), "删除失败", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(requireContext(), "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private fun editComment(commentId: String, content: String) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                val response = RetrofitClient.postsApi.updateComment(commentId, com.zjgsu.treehole.network.AddCommentRequest(content))
-                if (response.isSuccessful) {
+                    // Update local data
                     val index = myComments.indexOfFirst { it.id == commentId }
                     if (index >= 0) {
-                        myComments[index] = myComments[index].copy(content = content)
+                        myComments[index] = myComments[index].copy(content = newContent)
                         commentsAdapter?.notifyItemChanged(index)
                     }
-                    Toast.makeText(requireContext(), "更新成功", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "评论已更新", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(requireContext(), "更新失败", Toast.LENGTH_SHORT).show()
                 }
@@ -451,6 +468,38 @@ class MyHollowFragment : Fragment() {
                     if (index >= 0) {
                         myComments.removeAt(index)
                         commentsAdapter?.notifyItemRemoved(index)
+                    }
+                    Toast.makeText(requireContext(), "删除成功", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(requireContext(), "删除失败", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun showDeleteConfirmDialog(postId: String) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("删除秘密")
+            .setMessage("确定要删除这条秘密吗？删除后无法恢复。")
+            .setNegativeButton("取消", null)
+            .setPositiveButton("删除") { _, _ ->
+                deletePost(postId)
+            }
+            .show()
+    }
+
+    private fun deletePost(postId: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.postsApi.deletePost(postId)
+                if (response.isSuccessful) {
+                    // Remove from local list and update adapter
+                    val index = mySecrets.indexOfFirst { it.id == postId }
+                    if (index >= 0) {
+                        mySecrets.removeAt(index)
+                        secretsAdapter?.notifyItemRemoved(index)
                     }
                     Toast.makeText(requireContext(), "删除成功", Toast.LENGTH_SHORT).show()
                 } else {
@@ -536,16 +585,5 @@ class MyHollowFragment : Fragment() {
                 Toast.makeText(requireContext(), "更新失败: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
-    }
-
-    private fun navigateToFollowList(userId: String, type: String, title: String) {
-        findNavController().navigate(
-            R.id.action_my_hollow_to_follow_list,
-            Bundle().apply {
-                putString("userId", userId)
-                putString("type", type)
-                putString("title", title)
-            }
-        )
     }
 }

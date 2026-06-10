@@ -15,7 +15,8 @@ import com.zjgsu.treehole.util.TimeUtils
 class CommentListAdapter(
     private val comments: MutableList<MyComment>,
     private val onEdit: (String, String) -> Unit,
-    private val onDelete: (String) -> Unit
+    private val onDelete: (String) -> Unit,
+    private val onItemClick: (String) -> Unit
 ) : RecyclerView.Adapter<CommentListAdapter.ViewHolder>() {
 
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -47,6 +48,10 @@ class CommentListAdapter(
 
         holder.btnDelete.setOnClickListener {
             showDeleteConfirmDialog(holder, comment.id)
+        }
+
+        holder.itemView.setOnClickListener {
+            onItemClick(comment.postId)
         }
     }
 

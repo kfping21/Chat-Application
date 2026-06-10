@@ -33,8 +33,11 @@ router.put('/profile', auth, upload.single('avatar'), async (req, res) => {
             const avatarUrl = `${baseUrl}/uploads/avatars/${path.basename(req.file.path)}`;
             updates.avatar = avatarUrl;
         }
-        // Allow preset avatars
-        else if (avatar && !avatar.startsWith('http') && avatar.startsWith('preset_')) {
+        // Allow preset avatars or external URLs
+        if (avatar && avatar.startsWith('preset_')) {
+            updates.avatar = avatar;
+        } else if (avatar && avatar.startsWith('http')) {
+            // Allow external avatar URLs (e.g., from dicebear)
             updates.avatar = avatar;
         }
 
@@ -88,10 +91,9 @@ router.get('/discover', auth, async (req, res) => {
         const limit = parseInt(req.query.limit) || 60;
         const currentUserId = req.userId;
 
-        const currentUserObjectId = mongoose.Types.ObjectId.isValid(currentUserId)
-            ? new mongoose.Types.ObjectId(currentUserId)
-            : null;
-        const basePipeline = [
+        // Get users with recent activity, excluding current user
+        const users = await User.aggregate([
+            { $match: { _id: { $ne: new mongoose.Types.ObjectId(currentUserId) } } },
             { $addFields: { followersCount: { $size: { $ifNull: ['$followers', []] } } } },
             { $sort: { followersCount: -1, createdAt: -1 } },
             { $limit: limit },
@@ -103,25 +105,7 @@ router.get('/discover', auth, async (req, res) => {
                 isOnline: 1,
                 lastOnlineAt: 1
             }}
-        ];
-
-        // Get users with recent activity, excluding current user
-        const matchStage = currentUserObjectId
-            ? { $match: { _id: { $ne: currentUserObjectId } } }
-            : { $match: {} };
-
-        let users = await User.aggregate([
-            matchStage,
-            ...basePipeline
         ]);
-
-        // If only one user exists, fall back to showing self
-        if (users.length === 0) {
-            users = await User.aggregate([
-                { $match: { _id: currentUserObjectId } },
-                ...basePipeline
-            ]);
-        }
 
         res.json({
             users: users.map(user => ({

@@ -27,18 +27,21 @@ class NotificationsTabFragment : Fragment() {
     }
 
     private var notificationAdapter: NotificationAdapter? = null
-    private lateinit var tvEmpty: TextView
+    private var tvEmpty: View? = null
+    private lateinit var rvNotifications: RecyclerView
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? =
         inflater.inflate(R.layout.fragment_notifications_tab, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val rv = view.findViewById<RecyclerView>(R.id.rv_notifications)
+        rvNotifications = view.findViewById(R.id.rv_notifications)
         tvEmpty = view.findViewById(R.id.tv_empty_notifications)
-        rv.layoutManager = LinearLayoutManager(requireContext())
+        tvEmpty?.findViewById<TextView>(R.id.tv_empty_text)?.text = "暂无通知"
+        tvEmpty?.findViewById<TextView>(R.id.tv_empty_emoji)?.text = "📭"
+        rvNotifications.layoutManager = LinearLayoutManager(requireContext())
 
-        loadNotifications(rv)
+        loadNotifications(rvNotifications)
     }
 
     private fun loadNotifications(rv: RecyclerView) {
@@ -86,14 +89,14 @@ class NotificationsTabFragment : Fragment() {
                         }
                     }
                     rv.adapter = notificationAdapter
-                    tvEmpty.visibility = if (notifications.isEmpty()) View.VISIBLE else View.GONE
+                    tvEmpty?.visibility = if (notifications.isEmpty()) View.VISIBLE else View.GONE
                 } else {
                     rv.adapter = NotificationAdapter(emptyList())
-                    tvEmpty.visibility = View.VISIBLE
+                    tvEmpty?.visibility = View.VISIBLE
                 }
             } catch (e: Exception) {
                 rv.adapter = NotificationAdapter(emptyList())
-                tvEmpty.visibility = View.VISIBLE
+                tvEmpty?.visibility = View.VISIBLE
             }
         }
     }

@@ -9,6 +9,7 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.navigation.findNavController
 import androidx.recyclerview.widget.RecyclerView
 import com.zjgsu.treehole.R
@@ -27,12 +28,16 @@ class CommentAdapter(
 
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val ivAvatar: ImageView = view.findViewById(R.id.iv_comment_avatar)
+        val hugView: com.zjgsu.treehole.ui.widget.HugAnimationView? = view.findViewById(R.id.hug_animation_view)
         val tvUsername: TextView = view.findViewById(R.id.tv_comment_username)
         val tvAuthor: TextView = view.findViewById(R.id.tv_comment_author)
         val tvTime: TextView = view.findViewById(R.id.tv_comment_time)
         val tvContent: TextView = view.findViewById(R.id.tv_comment_content)
+        val viewHalo: com.zjgsu.treehole.ui.widget.AvatarHaloView? = view.findViewById(R.id.view_avatar_halo)
+        val tvReceivedHug: TextView? = view.findViewById(R.id.tv_received_hug)
         val tvLikes: TextView = view.findViewById(R.id.tv_comment_likes)
         val btnMore: ImageButton = view.findViewById(R.id.btn_comment_more)
+        var hasHugged = false
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -72,6 +77,50 @@ class CommentAdapter(
             }
         }
 
+        // Setup Double-Tap gesture for "Hug" on the entire comment item
+        holder.hasHugged = false
+        holder.tvReceivedHug?.visibility = View.GONE
+        holder.viewHalo?.alpha = 0f
+        
+        var lastItemClickTime = 0L
+        holder.itemView.setOnClickListener {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastItemClickTime < 300) {
+                // Double click detected!
+                if (!holder.hasHugged) {
+                    holder.hasHugged = true
+                    
+                    // Trigger custom animation view
+                    holder.hugView?.playAnimation()
+                    
+                    // Delay text badge and halo until animation completes (1800ms)
+                    holder.itemView.postDelayed({
+                        // Show received hug badge
+                        holder.tvReceivedHug?.visibility = View.VISIBLE
+                        holder.tvReceivedHug?.alpha = 0f
+                        holder.tvReceivedHug?.animate()?.alpha(1f)?.setDuration(300)?.start()
+
+                        // Play the rotating halo and expanding glow effect
+                        holder.viewHalo?.playAnimation()
+                    }, 1800)
+                    
+                    Toast.makeText(context, "你抱了抱${comment.nickname.ifEmpty { "神秘人" }}", Toast.LENGTH_SHORT).show()
+                }
+                lastItemClickTime = 0L
+            } else {
+                lastItemClickTime = currentTime
+            }
+        }
+        holder.tvReceivedHug?.setOnClickListener {
+            val bottomSheet = com.zjgsu.treehole.ui.HugDetailsBottomSheet.newInstance(
+                nickname = comment.nickname ?: "匿名用户",
+                avatar = comment.avatar ?: ""
+            )
+            val fragmentManager = (context as? androidx.fragment.app.FragmentActivity)?.supportFragmentManager
+            if (fragmentManager != null) {
+                bottomSheet.show(fragmentManager, "HugDetailsBottomSheet")
+            }
+        }
         holder.tvUsername.setOnClickListener {
             val currentUserId = TokenManager.getUserId() ?: ""
             if (!comment.userId.isNullOrEmpty() && comment.userId != currentUserId) {
@@ -114,7 +163,7 @@ class CommentAdapter(
                 if (newContent.isNotEmpty()) {
                     detailFragment?.updateComment(comment.id, newContent)
                 } else {
-                    android.widget.Toast.makeText(detailFragment?.requireContext(), "内容不能为空", android.widget.Toast.LENGTH_SHORT).show()
+                    Toast.makeText(detailFragment?.requireContext(), "内容不能为空", Toast.LENGTH_SHORT).show()
                 }
             }
             .show()

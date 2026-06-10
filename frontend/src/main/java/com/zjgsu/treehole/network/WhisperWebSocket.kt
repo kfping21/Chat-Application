@@ -13,13 +13,14 @@ import java.util.concurrent.TimeUnit
 object WhisperWebSocket {
 
     private const val TAG = "WhisperWS"
-    private val socketUrlCandidates = listOf(
-        "http://10.199.113.114:3001/socket.io/?EIO=4&transport=websocket",
-        "http://10.199.113.114:3001/socket.io/?EIO=4&transport=websocket"
-    )
+    private val socketUrlCandidates: List<String>
+        get() {
+            val baseUrl = RetrofitClient.BASE_URL.trimEnd('/')
+            return listOf("$baseUrl/socket.io/?EIO=4&transport=websocket")
+        }
 
     @Volatile
-    private var activeSocketUrl = socketUrlCandidates.first()
+    private var activeSocketUrl = ""
 
     // Events
     interface OnWhisperListener {
@@ -33,7 +34,29 @@ object WhisperWebSocket {
         fun onOnlineUsersUpdated(onlineUserIds: List<String>)
         fun onConnected()
         fun onDisconnected()
+        fun onSoulMatchFound(roomId: String, participantId: String, nickname: String, avatar: String) {}
     }
+
+    // Party room events listener
+    interface OnPartyRoomListener {
+        fun onPartyRoomCreated(room: PartyRoomDto)
+        fun onPartyRoomDismissed(roomId: String) {}
+        fun onNewPartyMessage(message: com.zjgsu.treehole.network.PartyMessageDto) {}
+    }
+
+    data class PartyRoomDto(
+        val id: String,
+        val name: String,
+        val subtitle: String,
+        val participantCount: Int,
+        val maxParticipants: Int,
+        val onlineCount: Int,
+        val heat: Int,
+        val messageCount: Int,
+        val lastMessage: String,
+        val lastMessageAt: String?,
+        val avatars: List<String>? = emptyList()
+    )
 
     data class WhisperMessage(
         val id: String = "",
@@ -47,6 +70,7 @@ object WhisperWebSocket {
 
     private var webSocket: WebSocket? = null
     private var listener: OnWhisperListener? = null
+    private var partyRoomListener: OnPartyRoomListener? = null
     private var connectionJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val gson = Gson()
@@ -68,6 +92,9 @@ object WhisperWebSocket {
         if (isConnected && currentUserId == userId) {
             Log.d(TAG, "Already connected with same user, updating listener")
             this.listener = listener
+            scope.launch(Dispatchers.Main) {
+                listener.onConnected()
+            }
             return
         }
 
@@ -86,8 +113,10 @@ object WhisperWebSocket {
             try {
                 isConnecting = true
                 isHandshakeComplete = false
+                val currentCandidates = socketUrlCandidates
+                activeSocketUrl = if (activeSocketUrl.isNotEmpty()) activeSocketUrl else currentCandidates.first()
                 val orderedUrls = listOf(activeSocketUrl) +
-                    socketUrlCandidates.filter { it != activeSocketUrl }
+                    currentCandidates.filter { it != activeSocketUrl }
 
                 fun connectWithCandidate(index: Int) {
                     if (index >= orderedUrls.size) {
@@ -228,14 +257,32 @@ object WhisperWebSocket {
             // Handle users-online specially - it sends an array directly, not an object
             if (eventName == "users-online") {
                 val onlineIds = try {
-                    val idsArray = eventDataRaw as? Array<Any> ?: emptyArray()
-                    idsArray.mapNotNull { it.toString() }.filter { it.length > 10 }
+                    val rawArray = org.json.JSONArray(data)
+                    val list = mutableListOf<String>()
+                    if (rawArray.length() > 1) {
+                        val idsArray = rawArray.getJSONArray(1)
+                        for (i in 0 until idsArray.length()) {
+                            val id = idsArray.getString(i)
+                            if (id.length > 10) list.add(id)
+                        }
+                    }
+                    list
                 } catch (e: Exception) {
                     Log.e(TAG, "Parse online users error: ${e.message}")
                     emptyList()
                 }
                 scope.launch(Dispatchers.Main) {
                     listener?.onOnlineUsersUpdated(onlineIds)
+                }
+                return
+            }
+
+            // Handle party-room-dismissed
+            if (eventName == "party-room-dismissed") {
+                val dismissData = eventDataRaw as? Map<*, *> ?: return
+                val dismissRoomId = dismissData["roomId"] as? String ?: return
+                scope.launch(Dispatchers.Main) {
+                    partyRoomListener?.onPartyRoomDismissed(dismissRoomId)
                 }
                 return
             }
@@ -293,8 +340,52 @@ object WhisperWebSocket {
                 }
             }
 
+            "soul-match-found" -> {
+                val roomId = data["roomId"] as? String ?: ""
+                val participantId = data["participantId"] as? String ?: ""
+                val nickname = data["nickname"] as? String ?: ""
+                val avatar = data["avatar"] as? String ?: ""
+                scope.launch(Dispatchers.Main) {
+                    listener?.onSoulMatchFound(roomId, participantId, nickname, avatar)
+                }
+            }
+
             "read-receipt" -> {
                 // Handle read receipt
+            }
+
+            "party-room-created" -> {
+                val room = PartyRoomDto(
+                    id = data["id"] as? String ?: "",
+                    name = data["name"] as? String ?: "",
+                    subtitle = data["subtitle"] as? String ?: "",
+                    participantCount = (data["participantCount"] as? Number)?.toInt() ?: 0,
+                    maxParticipants = (data["maxParticipants"] as? Number)?.toInt() ?: 6,
+                    onlineCount = (data["onlineCount"] as? Number)?.toInt() ?: 0,
+                    heat = (data["heat"] as? Number)?.toInt() ?: 0,
+                    messageCount = (data["messageCount"] as? Number)?.toInt() ?: 0,
+                    lastMessage = data["lastMessage"] as? String ?: "",
+                    lastMessageAt = data["lastMessageAt"] as? String,
+                    avatars = (data["avatars"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
+                )
+                scope.launch(Dispatchers.Main) {
+                    partyRoomListener?.onPartyRoomCreated(room)
+                }
+            }
+
+            "new-party-message" -> {
+                val msg = com.zjgsu.treehole.network.PartyMessageDto(
+                    id = data["id"] as? String ?: "",
+                    roomId = data["roomId"] as? String ?: "",
+                    senderId = data["senderId"] as? String ?: "",
+                    senderNickname = data["senderNickname"] as? String ?: "匿名用户",
+                    content = data["content"] as? String ?: "",
+                    createdAt = data["createdAt"] as? String ?: "",
+                    isSystemMessage = data["isSystemMessage"] as? Boolean ?: false
+                )
+                scope.launch(Dispatchers.Main) {
+                    partyRoomListener?.onNewPartyMessage(msg)
+                }
             }
         }
     }
@@ -370,9 +461,22 @@ object WhisperWebSocket {
     }
 
     fun requestOnlineUsers() {
-        if (isConnected) {
+        if (!TokenManager.isIncognitoModeEnabled()) {
             sendEvent("request-online-users", "")
         }
+    }
+
+    fun requestSoulMatch() {
+        val userId = currentUserId ?: return
+        sendEvent("soul-match-request", mapOf("userId" to userId))
+    }
+
+    fun cancelSoulMatch() {
+        sendEvent("soul-match-cancel", emptyMap<String, String>())
+    }
+
+    fun setPartyRoomListener(listener: OnPartyRoomListener?) {
+        this.partyRoomListener = listener
     }
 
     private fun disconnectImmediate() {

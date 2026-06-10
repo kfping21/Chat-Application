@@ -78,13 +78,13 @@ data class FollowUserDto(
     val isFollowing: Boolean
 )
 
+data class FollowListResponse(
+    val users: List<FollowUserDto>
+)
+
 data class ChangePasswordRequest(
     val oldPassword: String,
     val newPassword: String
-)
-
-data class FollowListResponse(
-    val users: List<FollowUserDto>
 )
 
 interface AuthApi {

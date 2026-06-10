@@ -5,230 +5,240 @@
     android:layout_width="280dp"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/bg_deep"
+    android:background="@drawable/bg_sidebar_gradient"
     android:fitsSystemWindows="true">
 
     <!-- Header section with user info -->
-    <LinearLayout
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="180dp"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:background="@color/bg_header"
-        android:padding="24dp">
+        android:layout_height="wrap_content"
+        android:paddingTop="36dp"
+        android:paddingBottom="24dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp">
 
-        <!-- Avatar -->
-        <FrameLayout
-            android:layout_width="72dp"
-            android:layout_height="72dp"
-            android:layout_marginBottom="12dp">
-
-            <View
-                android:layout_width="88dp"
-                android:layout_height="88dp"
-                android:layout_gravity="center"
-                android:background="@drawable/bg_fab_glow_layer"
-                android:alpha="0.3" />
-
-            <ImageView
-                android:id="@+id/iv_sidebar_avatar"
-                android:layout_width="72dp"
-                android:layout_height="72dp"
-                android:layout_gravity="center"
-                android:background="@drawable/bg_avatar_circle"
-                android:clipToOutline="true" />
-        </FrameLayout>
-
-        <!-- Username -->
-        <TextView
-            android:id="@+id/tv_sidebar_username"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/anonymous_soul"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_primary" />
-
-        <!-- Stats row -->
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp">
+            android:orientation="vertical"
+            android:gravity="center">
 
-            <TextView
-                android:id="@+id/tv_sidebar_following"
+            <!-- Avatar -->
+            <FrameLayout
+                android:layout_width="84dp"
+                android:layout_height="84dp"
+                android:layout_marginBottom="16dp">
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_avatar_cyan_ring"
+                    android:backgroundTint="@color/gold_dim"
+                    android:alpha="0.2" />
+
+                <ImageView
+                    android:id="@+id/iv_sidebar_avatar"
+                    android:layout_width="74dp"
+                    android:layout_height="74dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_avatar_circle"
+                    android:padding="2dp"
+                    android:clipToOutline="true" />
+            </FrameLayout>
+
+            <!-- Username & Edit icon -->
+            <LinearLayout
+                android:id="@+id/sidebar_edit_profile"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:textColor="@color/gold_primary" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="?attr/selectableItemBackground"
+                android:padding="4dp">
 
-            <TextView
+                <TextView
+                    android:id="@+id/tv_sidebar_username"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/anonymous_soul"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary" />
+                
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginStart="8dp"
+                    android:src="@android:drawable/ic_menu_edit"
+                    app:tint="@color/text_muted" />
+            </LinearLayout>
+
+            <!-- Stats row -->
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text=" 关注"
-                android:textSize="11sp"
-                android:textColor="@color/text_muted" />
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_pill_menu_item"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp">
 
-            <View
-                android:layout_width="12dp"
-                android:layout_height="1dp"
-                android:background="@color/divider"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="12dp" />
+                <TextView
+                    android:id="@+id/tv_sidebar_following"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/gold_primary" />
 
-            <TextView
-                android:id="@+id/tv_sidebar_followers"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="0"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:textColor="@color/gold_primary" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" 关注"
+                    android:textSize="11sp"
+                    android:textColor="@color/text_muted" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=" 粉丝"
-                android:textSize="11sp"
-                android:textColor="@color/text_muted" />
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="12dp"
+                    android:background="@color/divider"
+                    android:layout_marginStart="12dp"
+                    android:layout_marginEnd="12dp" />
+
+                <TextView
+                    android:id="@+id/tv_sidebar_followers"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/gold_primary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" 粉丝"
+                    android:textSize="11sp"
+                    android:textColor="@color/text_muted" />
+            </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
+    </RelativeLayout>
 
     <!-- Menu items -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingTop="8dp"
+        android:paddingBottom="24dp"
         android:fillViewport="true">
+        
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="8dp">
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp">
 
-            <!-- Edit Profile -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="实用工具"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp"
+                android:layout_marginStart="16dp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Browsing History -->
             <LinearLayout
-                android:id="@+id/sidebar_edit_profile"
+                android:id="@+id/sidebar_history"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="56dp"
                 android:orientation="horizontal"
-                android:background="@drawable/bg_card"
                 android:gravity="center_vertical"
                 android:paddingStart="20dp"
                 android:paddingEnd="16dp"
-                android:layout_marginBottom="8dp">
+                android:background="@drawable/bg_pill_menu_item"
+                android:layout_marginBottom="12dp">
 
                 <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:src="@android:drawable/ic_menu_recent_history"
+                    android:layout_marginEnd="16dp"
+                    app:tint="#A78BFA" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="浏览足迹"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Drafts -->
+            <LinearLayout
+                android:id="@+id/sidebar_drafts"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="20dp"
+                android:paddingEnd="16dp"
+                android:background="@drawable/bg_pill_menu_item"
+                android:layout_marginBottom="24dp">
+
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
                     android:src="@android:drawable/ic_menu_edit"
-                    android:layout_marginEnd="14dp"
-                    app:tint="@color/gold_secondary" />
+                    android:layout_marginEnd="16dp"
+                    app:tint="#A78BFA" />
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="编辑资料"
+                    android:text="我的草稿箱"
                     android:textColor="@color/text_primary"
-                    android:textSize="13sp" />
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:src="@android:drawable/ic_media_play"
-                    app:tint="@color/text_hint" />
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- Change Password -->
-            <LinearLayout
-                android:id="@+id/sidebar_change_password"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:orientation="horizontal"
-                android:background="@drawable/bg_card"
-                android:gravity="center_vertical"
-                android:paddingStart="20dp"
-                android:paddingEnd="16dp"
-                android:layout_marginBottom="8dp">
-
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@android:drawable/ic_lock_lock"
-                    android:layout_marginEnd="14dp"
-                    app:tint="@color/gold_secondary" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="修改密码"
-                    android:textColor="@color/text_primary"
-                    android:textSize="13sp" />
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:src="@android:drawable/ic_media_play"
-                    app:tint="@color/text_hint" />
-            </LinearLayout>
-
-            <!-- Privacy -->
-            <LinearLayout
-                android:id="@+id/sidebar_privacy"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:orientation="horizontal"
-                android:background="@drawable/bg_card"
-                android:gravity="center_vertical"
-                android:paddingStart="20dp"
-                android:paddingEnd="16dp"
-                android:layout_marginBottom="8dp">
-
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@android:drawable/ic_lock_lock"
-                    android:layout_marginEnd="14dp"
-                    app:tint="@color/gold_secondary" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/menu_privacy"
-                    android:textColor="@color/text_primary"
-                    android:textSize="13sp" />
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:src="@android:drawable/ic_media_play"
-                    app:tint="@color/text_hint" />
-            </LinearLayout>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="个性与偏好"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp"
+                android:layout_marginStart="16dp"
+                android:layout_marginBottom="8dp" />
 
             <!-- Theme -->
             <LinearLayout
                 android:id="@+id/sidebar_theme"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="56dp"
                 android:orientation="horizontal"
-                android:background="@drawable/bg_card"
                 android:gravity="center_vertical"
                 android:paddingStart="20dp"
                 android:paddingEnd="16dp"
-                android:layout_marginBottom="8dp">
+                android:background="@drawable/bg_pill_menu_item"
+                android:layout_marginBottom="12dp">
 
                 <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
                     android:src="@android:drawable/ic_menu_day"
-                    android:layout_marginEnd="14dp"
-                    app:tint="@color/gold_secondary" />
+                    android:layout_marginEnd="16dp"
+                    app:tint="#38BDF8" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -236,110 +246,114 @@
                     android:layout_weight="1"
                     android:text="@string/menu_theme"
                     android:textColor="@color/text_primary"
-                    android:textSize="13sp" />
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:src="@android:drawable/ic_media_play"
-                    app:tint="@color/text_hint" />
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- Storage -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="账户与帮助"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp"
+                android:layout_marginStart="16dp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Settings Center -->
             <LinearLayout
-                android:id="@+id/sidebar_storage"
+                android:id="@+id/sidebar_settings_center"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="56dp"
                 android:orientation="horizontal"
-                android:background="@drawable/bg_card"
                 android:gravity="center_vertical"
                 android:paddingStart="20dp"
                 android:paddingEnd="16dp"
-                android:layout_marginBottom="8dp">
+                android:background="@drawable/bg_pill_menu_item"
+                android:layout_marginBottom="12dp">
 
                 <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@android:drawable/ic_menu_save"
-                    android:layout_marginEnd="14dp"
-                    app:tint="@color/gold_secondary" />
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:src="@android:drawable/ic_menu_preferences"
+                    android:layout_marginEnd="16dp"
+                    app:tint="#38BDF8" />
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="存储空间"
+                    android:text="设置中心"
                     android:textColor="@color/text_primary"
-                    android:textSize="13sp" />
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:src="@android:drawable/ic_media_play"
-                    app:tint="@color/text_hint" />
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- About -->
+            <!-- Help -->
             <LinearLayout
-                android:id="@+id/sidebar_about"
+                android:id="@+id/sidebar_help"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="56dp"
                 android:orientation="horizontal"
-                android:background="@drawable/bg_card"
                 android:gravity="center_vertical"
                 android:paddingStart="20dp"
                 android:paddingEnd="16dp"
-                android:layout_marginBottom="8dp">
+                android:background="@drawable/bg_pill_menu_item"
+                android:layout_marginBottom="32dp">
 
                 <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@android:drawable/ic_menu_info_details"
-                    android:layout_marginEnd="14dp"
-                    app:tint="@color/gold_secondary" />
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:src="@android:drawable/ic_menu_help"
+                    android:layout_marginEnd="16dp"
+                    app:tint="#38BDF8" />
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="关于我们"
+                    android:text="客服与反馈"
                     android:textColor="@color/text_primary"
-                    android:textSize="13sp" />
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:src="@android:drawable/ic_media_play"
-                    app:tint="@color/text_hint" />
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- Logout -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/divider"
+                android:layout_marginBottom="24dp"
+                android:layout_marginStart="24dp"
+                android:layout_marginEnd="24dp" />
+
+            <!-- Logout Button Separated -->
             <LinearLayout
                 android:id="@+id/sidebar_logout"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="56dp"
                 android:orientation="horizontal"
-                android:background="@drawable/bg_card"
-                android:gravity="center_vertical"
-                android:paddingStart="20dp"
-                android:paddingEnd="16dp"
-                android:layout_marginBottom="8dp">
+                android:background="@drawable/bg_pill_logout"
+                android:gravity="center">
 
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:src="@android:drawable/ic_menu_close_clear_cancel"
-                    android:layout_marginEnd="14dp"
-                    app:tint="#FFEF4444" />
+                    android:layout_marginEnd="8dp"
+                    app:tint="#FF6B6B" />
 
                 <TextView
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:text="@string/menu_logout"
-                    android:textColor="#FFEF4444"
-                    android:textSize="13sp" />
+                    android:textColor="#FF6B6B"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
             </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="24dp" />
+
         </LinearLayout>
     </ScrollView>
 

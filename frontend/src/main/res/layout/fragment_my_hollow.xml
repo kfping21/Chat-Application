@@ -12,10 +12,10 @@
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:orientation="horizontal"
-        android:background="@color/bg_header"
+        android:background="@color/bg_deep"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
-        android:elevation="8dp"
+        android:elevation="0dp"
         android:gravity="center_vertical">
 
         <ImageView
@@ -25,13 +25,13 @@
             android:src="@drawable/ic_menu_hamburger"
             android:padding="8dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:tint="@color/gold_primary" />
+            app:tint="@color/gold_primary" />
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="@string/title_my_hollow"
+            android:text=""
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/text_primary"
@@ -310,14 +310,11 @@
                 android:scrollbars="none"
                 android:layout_marginBottom="20dp" />
 
-            <TextView
+            <include
                 android:id="@+id/tv_empty_secrets"
+                layout="@layout/layout_empty_state"
                 android:layout_width="match_parent"
-                android:layout_height="100dp"
-                android:text="暂无秘密"
-                android:textSize="14sp"
-                android:textColor="@color/text_muted"
-                android:gravity="center"
+                android:layout_height="match_parent"
                 android:visibility="gone" />
 
             <!-- Liked posts list -->
@@ -330,14 +327,11 @@
                 android:visibility="gone"
                 android:layout_marginBottom="20dp" />
 
-            <TextView
+            <include
                 android:id="@+id/tv_empty_liked"
+                layout="@layout/layout_empty_state"
                 android:layout_width="match_parent"
-                android:layout_height="100dp"
-                android:text="暂无点赞的秘密"
-                android:textSize="14sp"
-                android:textColor="@color/text_muted"
-                android:gravity="center"
+                android:layout_height="match_parent"
                 android:visibility="gone" />
 
             <!-- My comments list -->
@@ -350,17 +344,14 @@
                 android:visibility="gone"
                 android:layout_marginBottom="20dp" />
 
-            <TextView
+            <include
                 android:id="@+id/tv_empty_comments"
+                layout="@layout/layout_empty_state"
                 android:layout_width="match_parent"
-                android:layout_height="100dp"
-                android:text="暂无评论"
-                android:textSize="14sp"
-                android:textColor="@color/text_muted"
-                android:gravity="center"
+                android:layout_height="match_parent"
                 android:visibility="gone" />
 
-            </LinearLayout>
+        </LinearLayout>
     </ScrollView>
 
 </LinearLayout>

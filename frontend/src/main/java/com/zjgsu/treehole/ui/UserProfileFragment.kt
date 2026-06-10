@@ -150,8 +150,8 @@ class UserProfileFragment : Fragment() {
             tvFollow.setTextColor(resources.getColor(R.color.text_muted, null))
         } else {
             tvFollow.text = "关注"
-            btnFollow.setBackgroundResource(R.drawable.bg_ai_notice_chip)
-            tvFollow.setTextColor(resources.getColor(R.color.ai_accent, null))
+            btnFollow.setBackgroundResource(R.drawable.bg_button_golden)
+            tvFollow.setTextColor(resources.getColor(R.color.bg_deep, null))
         }
     }
 
@@ -215,7 +215,8 @@ class UserProfileFragment : Fragment() {
                                 avatar = post.user?.avatar ?: "",
                                 nickname = post.user?.nickname ?: "",
                                 isLiked = post.isLiked,
-                                userId = userId
+                                userId = userId,
+                                imageUrls = post.imageUrls
                             )
                         )
                     }

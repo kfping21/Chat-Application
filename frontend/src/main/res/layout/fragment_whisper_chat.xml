@@ -292,13 +292,12 @@
 
             <ImageButton
                 android:id="@+id/btn_ai_toggle"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="@drawable/bg_ai_toggle_gradient"
                 android:contentDescription="@string/ai_toggle"
-                android:padding="4dp"
-                android:src="@drawable/ic_sparkle"
-                app:tint="@color/ai_accent" />
+                android:padding="6dp"
+                android:src="@drawable/ic_ai_lightbulb" />
 
             <ImageButton
                 android:id="@+id/btn_send_message"

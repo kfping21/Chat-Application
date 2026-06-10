@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_bottom_sheet"
+    android:padding="20dp">
+
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:background="@drawable/bg_handle"
+        android:layout_marginBottom="20dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="客服与反馈"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary"
+        android:layout_marginBottom="16dp"/>
+
+    <EditText
+        android:id="@+id/et_feedback"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:background="@drawable/bg_input"
+        android:hint="写下你想对树洞说的话，或者遇到的问题..."
+        android:textColorHint="@color/text_muted"
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:padding="12dp"
+        android:gravity="top|start"
+        android:layout_marginBottom="16dp"/>
+
+    <EditText
+        android:id="@+id/et_contact"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/bg_input"
+        android:hint="联系方式 (选填，邮箱或手机号)"
+        android:textColorHint="@color/text_muted"
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:padding="12dp"
+        android:inputType="textEmailAddress"
+        android:layout_marginBottom="24dp"/>
+
+    <Button
+        android:id="@+id/btn_submit_feedback"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/bg_button_golden"
+        android:text="提交反馈"
+        android:textColor="@color/bg_deep"
+        android:textStyle="bold"
+        android:textSize="16sp"/>
+</LinearLayout>
