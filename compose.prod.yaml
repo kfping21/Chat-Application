@@ -1,0 +1,47 @@
+# 生产环境 Docker Compose 配置
+services:
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY:-treehole}/backend:${VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=mongodb://root:${MONGO_PASSWORD}@db:27017/treehole?authSource=admin
+      - PORT=3001
+      - NODE_ENV=production
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - treehole-network
+
+  db:
+    image: mongo:7
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - mongodata:/data/db
+    networks:
+      - treehole-network
+
+networks:
+  treehole-network:
+    driver: bridge
+
+volumes:
+  mongodata:

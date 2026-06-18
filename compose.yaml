@@ -1,0 +1,54 @@
+# 开发环境 Docker Compose 配置
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=mongodb://root:dev123@db:27017/treehole
+      - PORT=3001
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src
+    networks:
+      - treehole-network
+
+  # Android APK 构建服务（开发用）
+  android-build:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    volumes:
+      - ./app:/project
+    working_dir: /project
+    networks:
+      - treehole-network
+
+  db:
+    image: mongo:7
+    container_name: treehole_mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: dev123
+      MONGO_INITDB_DATABASE: treehole
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - mongodata:/data/db
+    networks:
+      - treehole-network
+
+networks:
+  treehole-network:
+    driver: bridge
+
+volumes:
+  mongodata:
