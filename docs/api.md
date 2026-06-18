@@ -1,262 +1,789 @@
-# API 使用说明（树洞聊天业务）
+# API 使用说明（树洞聊天应用）
 
 ## 1. 基础信息
 
-- Base URL：`http://localhost:3000`
-- 作业接口前缀：`/api`
-- 历史接口前缀：`/api/v1`（保持兼容）
-- OpenAPI：`docs/api.yaml`
-- 测试前置：配置 `backend/.env` 数据库连接并执行 `backend/sql/init.sql`
+- **Base URL**: `http://<电脑内网IP>:3000`（移动端通过内网访问）
+- **API前缀**: `/api`
+- **认证方式**: JWT Bearer Token
+- **数据格式**: JSON
+- **实时通信**: Socket.IO WebSocket
 
-### 1.1 数据库连接配置
+### 1.1 环境配置
 
-复制 `backend/.env.example` 为 `backend/.env`，按你的 MySQL 实际账号修改：
+复制 `backend/.env.example` 为 `backend/.env`，配置以下环境变量：
 
 ```env
 PORT=3000
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=你的MySQL密码
-DB_NAME=treehole
+MONGODB_URI=mongodb://localhost:27017/treehole
+JWT_SECRET=your_jwt_secret_key
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
 
-如果报错：
+---
 
-`Access denied for user 'root'@'localhost' (using password: NO)`
+## 2. 统一响应格式
 
-说明后端没有拿到正确密码，重点检查 `DB_PASSWORD` 是否为空、`.env` 是否放在 `backend/` 根目录。
-
-## 2. 统一响应格式（作业接口）
+### 2.1 成功响应
 
 ```json
 {
-  "code": 200,
-  "message": "ok",
-  "data": {}
+  "message": "操作成功",
+  "data": {
+    // 具体数据
+  }
 }
 ```
 
-## 3. 认证接口
-
-### 3.1 注册
-
-- `POST /api/auth/register`
-- Body:
+### 2.2 错误响应
 
 ```json
 {
-  "username": "u001",
+  "message": "错误描述"
+}
+```
+
+---
+
+## 3. 认证接口（/api/auth）
+
+### 3.1 用户注册
+
+**接口**: `POST /api/auth/register`
+
+**请求Body**:
+```json
+{
+  "username": "user001",
   "password": "123456",
-  "displayName": "匿名用户001"
+  "nickname": "匿名用户001"
 }
 ```
 
-### 3.2 登录
-
-- `POST /api/auth/login`
-- 使用注册成功后的用户名与密码（用户名映射 `users.anonymous_name`，密码映射 `users.auth_password`）
-
-### 3.3 登出
-
-- `POST /api/auth/logout`
-- Header：`Authorization: Bearer <token>`
-
-## 4. 元数据接口
-
-### 4.1 情绪字典
-
-- `GET /api/meta/emotions`
-
-### 4.2 热门话题
-
-- `GET /api/discover/topics/hot`
-
-### 4.3 话题列表（分页）
-
-- `GET /api/topics?page=1&size=20&hotOnly=true`
-
-## 5. 核心业务资源（帖子）与互动
-
-### 5.1 列表（分页+筛选）
-
-- `GET /api/posts?page=1&size=10&emotionCode=happy`
-- `emotionCode` 可选，对应 `emotions.code`
-
-### 5.1.1 按话题筛选帖子
-
-- `GET /api/topics/{topicId}/posts?page=1&size=10`
-
-### 5.2 创建帖子
-
-- `POST /api/posts`
-- Header：`Authorization: Bearer <token>`
-- Body:
-
+**响应**:
 ```json
 {
-  "content": "今天有点累，但我在坚持。",
-  "emotionCode": "happy",
-  "topicIds": [1, 2],
-  "allowComments": true,
-  "isPublic": true
+  "message": "注册成功",
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "user": {
+    "id": "507f1f77bcf86cd799439011",
+    "username": "user001",
+    "nickname": "匿名用户001"
+  }
 }
 ```
 
-### 5.3 获取单个帖子详情
+**状态码**:
+- `201`: 注册成功
+- `400`: 用户名已存在或参数错误
 
-- `GET /api/posts/{id}`
-- 返回结构：
-  - `data.post`：帖子详情
-  - `data.comments`：评论列表
+---
 
-### 5.4 更新帖子（作者本人）
+### 3.2 用户登录
 
-- `PUT /api/posts/{id}`
-- Header：`Authorization: Bearer <token>`
-- Body（至少一个字段）：
+**接口**: `POST /api/auth/login`
 
+**请求Body**:
+```json
+{
+  "username": "user001",
+  "password": "123456"
+}
+```
+
+**响应**:
+```json
+{
+  "message": "登录成功",
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "user": {
+    "id": "507f1f77bcf86cd799439011",
+    "username": "user001",
+    "nickname": "匿名用户001",
+    "avatar": "http://...",
+    "bio": "个人简介"
+  }
+}
+```
+
+**状态码**:
+- `200`: 登录成功
+- `401`: 用户名或密码错误
+
+---
+
+### 3.3 获取当前用户信息
+
+**接口**: `GET /api/auth/me`
+
+**Header**: `Authorization: Bearer <token>`
+
+**响应**:
+```json
+{
+  "user": {
+    "id": "507f1f77bcf86cd799439011",
+    "username": "user001",
+    "nickname": "匿名用户001",
+    "avatar": "http://...",
+    "bio": "个人简介",
+    "following": [],
+    "followers": [],
+    "createdAt": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+---
+
+### 3.4 修改密码
+
+**接口**: `POST /api/auth/change-password`
+
+**Header**: `Authorization: Bearer <token>`
+
+**请求Body**:
+```json
+{
+  "currentPassword": "123456",
+  "newPassword": "newpassword"
+}
+```
+
+---
+
+## 4. 帖子接口（/api/posts）
+
+### 4.1 创建帖子
+
+**接口**: `POST /api/posts`
+
+**Header**: `Authorization: Bearer <token>`
+
+**请求Body**（支持图片上传）:
+```
+Content-Type: multipart/form-data
+
+content: "今天心情不错"
+mood: "开心"
+images: [File, File]  // 最多2张图片
+```
+
+**响应**:
+```json
+{
+  "message": "发布成功",
+  "post": {
+    "id": "507f1f77bcf86cd799439012",
+    "userId": "507f1f77bcf86cd799439011",
+    "content": "今天心情不错",
+    "mood": "开心",
+    "imageUrls": ["http://..."],
+    "likes": 0,
+    "commentCount": 0,
+    "createdAt": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+---
+
+### 4.2 获取帖子流
+
+**接口**: `GET /api/posts/feed?page=1&limit=20`
+
+**Header**: `Authorization: Bearer <token>`
+
+**响应**:
+```json
+{
+  "posts": [
+    {
+      "id": "...",
+      "userId": "...",
+      "content": "...",
+      "mood": "开心",
+      "imageUrls": [],
+      "likes": 10,
+      "commentCount": 5,
+      "likedBy": [],
+      "createdAt": "...",
+      "user": {
+        "id": "...",
+        "username": "...",
+        "nickname": "...",
+        "avatar": "..."
+      }
+    }
+  ],
+  "total": 100,
+  "page": 1,
+  "limit": 20
+}
+```
+
+---
+
+### 4.3 获取我的帖子
+
+**接口**: `GET /api/posts/my?page=1&limit=20`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 4.4 搜索帖子
+
+**接口**: `GET /api/posts/search?keyword=心情&page=1&limit=20`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 4.5 获取用户帖子
+
+**接口**: `GET /api/posts/user/:userId?page=1&limit=20`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 4.6 获取我点赞的帖子
+
+**接口**: `GET /api/posts/liked?page=1&limit=20`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 4.7 获取我的评论
+
+**接口**: `GET /api/posts/comments/my?page=1&limit=20`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 4.8 获取帖子详情
+
+**接口**: `GET /api/posts/:id`
+
+**Header**: `Authorization: Bearer <token>`
+
+**响应**:
+```json
+{
+  "post": {
+    "id": "...",
+    "content": "...",
+    "mood": "开心",
+    "likes": 10,
+    "commentCount": 5,
+    "user": {
+      "id": "...",
+      "username": "...",
+      "nickname": "...",
+      "avatar": "..."
+    }
+  },
+  "comments": [
+    {
+      "id": "...",
+      "userId": "...",
+      "content": "...",
+      "createdAt": "...",
+      "user": {
+        "id": "...",
+        "username": "...",
+        "nickname": "...",
+        "avatar": "..."
+      }
+    }
+  ]
+}
+```
+
+---
+
+### 4.9 点赞帖子
+
+**接口**: `POST /api/posts/:id/like`
+
+**Header**: `Authorization: Bearer <token>`
+
+**响应**:
+```json
+{
+  "message": "点赞成功",
+  "likes": 11,
+  "liked": true
+}
+```
+
+---
+
+### 4.10 评论帖子
+
+**接口**: `POST /api/posts/:id/comment`
+
+**Header**: `Authorization: Bearer <token>`
+
+**请求Body**:
+```json
+{
+  "content": "很好的帖子！"
+}
+```
+
+---
+
+### 4.11 删除帖子
+
+**接口**: `DELETE /api/posts/:id`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 4.12 更新帖子
+
+**接口**: `PUT /api/posts/:id`
+
+**Header**: `Authorization: Bearer <token>`
+
+**请求Body**:
 ```json
 {
   "content": "更新后的内容",
-  "emotionCode": "calm",
-  "topicIds": [3, 5],
-  "allowComments": false,
-  "isPublic": true
+  "mood": "平静"
 }
 ```
 
-### 5.5 删除帖子（作者本人）
+---
 
-- `DELETE /api/posts/{id}`
-- Header：`Authorization: Bearer <token>`
+### 4.13 更新评论
 
-### 5.6 发表评论
+**接口**: `PUT /api/posts/comments/:id`
 
-- `POST /api/posts/{id}/comments`
-- Header：`Authorization: Bearer <token>`
-- Body:
+**Header**: `Authorization: Bearer <token>`
 
+**请求Body**:
 ```json
 {
-  "content": "抱抱你，你不是一个人。"
+  "content": "更新后的评论"
 }
 ```
 
-支持回复评论（可选字段）：
+---
 
+### 4.14 删除评论
+
+**接口**: `DELETE /api/posts/comments/:id`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+## 5. 用户接口（/api/user）
+
+### 5.1 更新个人资料
+
+**接口**: `PUT /api/user/profile`
+
+**Header**: `Authorization: Bearer <token>`
+
+**请求Body**:
 ```json
 {
-  "content": "回复上一条评论",
-  "parentCommentId": 12
+  "nickname": "新昵称",
+  "bio": "新的个人简介"
 }
 ```
 
-### 5.7 帖子点赞/取消点赞
+---
 
-- `POST /api/posts/{id}/like`
-- `DELETE /api/posts/{id}/like`
-- Header：`Authorization: Bearer <token>`
+### 5.2 上传头像
 
-### 5.8 评论点赞/取消点赞
+**接口**: `POST /api/user/avatar`
 
-- `POST /api/comments/{id}/like`
-- `DELETE /api/comments/{id}/like`
-- Header：`Authorization: Bearer <token>`
+**Header**: `Authorization: Bearer <token>`
 
-### 5.9 评论列表（分页）
+**请求Body**（multipart/form-data）:
+```
+avatar: File
+```
 
-- `GET /api/posts/{id}/comments?page=1&size=20`
+---
 
-### 5.10 更新评论（作者本人）
+### 5.3 发现用户
 
-- `PUT /api/comments/{id}`
-- Header：`Authorization: Bearer <token>`
+**接口**: `GET /api/user/discover?limit=20`
 
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 5.4 获取用户信息
+
+**接口**: `GET /api/user/:id`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 5.5 获取关注列表
+
+**接口**: `GET /api/user/:id/following?page=1&limit=20`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 5.6 获取粉丝列表
+
+**接口**: `GET /api/user/:id/followers?page=1&limit=20`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+## 6. 通知接口（/api/notifications）
+
+### 6.1 获取通知列表
+
+**接口**: `GET /api/notifications?page=1&limit=20`
+
+**Header**: `Authorization: Bearer <token>`
+
+**响应**:
 ```json
 {
-  "content": "更新后的评论内容"
+  "notifications": [
+    {
+      "id": "...",
+      "recipientId": "...",
+      "senderId": "...",
+      "type": "like",
+      "postId": "...",
+      "message": "用户A点赞了你的帖子",
+      "read": false,
+      "createdAt": "...",
+      "sender": {
+        "id": "...",
+        "username": "...",
+        "nickname": "...",
+        "avatar": "..."
+      }
+    }
+  ],
+  "unreadCount": 5
 }
 ```
 
-### 5.11 删除评论（作者本人）
+---
 
-- `DELETE /api/comments/{id}`
-- Header：`Authorization: Bearer <token>`
+### 6.2 标记已读
 
-### 5.12 评论回复列表（分页）
+**接口**: `PUT /api/notifications/:id/read`
 
-- `GET /api/comments/{id}/replies?page=1&size=20`
+**Header**: `Authorization: Bearer <token>`
 
-## 6. 个人中心、通知、私信
+---
 
-### 6.1 我的摘要
+### 6.3 全部标记已读
 
-- `GET /api/me/summary`
-- Header：`Authorization: Bearer <token>`
+**接口**: `PUT /api/notifications/read-all`
 
-### 6.2 最近相遇
+**Header**: `Authorization: Bearer <token>`
 
-- `GET /api/encounters/recent?limit=20`
-- Header：`Authorization: Bearer <token>`
+---
 
-### 6.3 通知列表与已读
+### 6.4 未读数量
 
-- `GET /api/notifications?page=1&size=20`
-- `POST /api/notifications/{id}/read`
-- `POST /api/notifications/read-all`
-- `DELETE /api/notifications/{id}`
-- `DELETE /api/notifications?readOnly=true`（仅清理已读）
-- `DELETE /api/notifications`（清理全部业务通知，不含 auth_session）
-- Header：`Authorization: Bearer <token>`
+**接口**: `GET /api/notifications/unread-count`
 
-### 6.4 私信收件箱与发送
+**Header**: `Authorization: Bearer <token>`
 
-- `GET /api/messages/inbox?page=1&size=20`
-- `GET /api/messages/sent?page=1&size=20`
-- `GET /api/messages/conversations?page=1&size=20`（会话列表，按最近消息排序）
-- `GET /api/messages/conversation?peerUserId=2&page=1&size=20`
-- `POST /api/messages`
-- `POST /api/messages/{id}/read`
-- Header：`Authorization: Bearer <token>`
-- 发送 Body:
+---
 
+### 6.5 清理重复通知
+
+**接口**: `POST /api/notifications/cleanup`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 6.6 清空通知
+
+**接口**: `DELETE /api/notifications/clear-all`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+## 7. 私信接口（/api/whisper）
+
+### 7.1 获取聊天房间列表
+
+**接口**: `GET /api/whisper/rooms`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 7.2 获取聊天历史
+
+**接口**: `GET /api/whisper/history/:roomId?page=1&limit=50`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 7.3 发送消息
+
+**接口**: `POST /api/whisper/message/:roomId`
+
+**Header**: `Authorization: Bearer <token>`
+
+**请求Body**:
 ```json
 {
-  "receiverUserId": 2,
-  "content": "你好呀，愿你今晚有个好梦。"
+  "content": "你好！"
 }
 ```
 
-### 6.5 WebSocket 实时私信
+---
 
-- 地址：`ws://localhost:3000/ws`
-- 鉴权（二选一）：
-  - Query：`ws://localhost:3000/ws?token=<token>`
-  - Header：`Authorization: Bearer <token>`
-- 服务端事件：
-  - `ws.ready`：连接鉴权成功
-  - `message.created`：当前用户收到新私信（作为接收方）
-  - `message.sent`：当前用户发送私信成功后的回显（作为发送方）
-  - `message.read`：对方已读你发送的私信
-  - `ws.pong`：客户端发送 `{"type":"ping"}` 后的响应
+### 7.4 关注用户
 
-## 7. 状态码
+**接口**: `POST /api/whisper/follow/:userId`
 
-- `200` 成功
-- `201` 创建成功
-- `400` 参数错误
-- `401` 未授权
-- `404` 资源不存在（或无权限）
-- `500` 服务内部错误
+**Header**: `Authorization: Bearer <token>`
 
-## 8. 测试建议（至少 5 条，含 auth + post）
+---
 
-1. `POST /api/auth/register`：注册新用户（期望 `201`）。
-2. `POST /api/auth/login`：用刚注册账号登录（期望 `200`，返回 token）。
-3. `POST /api/posts`：携带 Bearer token 创建帖子（期望 `201`）。
-4. `POST /api/posts/{id}/comments`：新增评论（期望 `201`）。
-5. `POST /api/posts/{id}/like`：帖子点赞（期望 `200`）。
-6. `GET /api/notifications?page=1&size=10`：查询通知（期望 `200`）。
-7. `POST /api/messages`：发送私信（期望 `201`）。
-8. 负例：不带 token 调 `POST /api/posts`（期望 `401`）。
+### 7.5 获取用户信息
+
+**接口**: `GET /api/whisper/user/:userId`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 7.6 开始聊天
+
+**接口**: `POST /api/whisper/start/:userId`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 7.7 标记已读
+
+**接口**: `POST /api/whisper/read/:roomId`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+## 8. 群聊接口（/api/party）
+
+### 8.1 获取派对房间列表
+
+**接口**: `GET /api/party/rooms`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 8.2 创建派对房间
+
+**接口**: `POST /api/party/rooms`
+
+**Header**: `Authorization: Bearer <token>`
+
+**请求Body**:
+```json
+{
+  "name": "开心聊天室",
+  "description": "分享开心的事情"
+}
+```
+
+---
+
+### 8.3 加入房间
+
+**接口**: `POST /api/party/rooms/:roomId/join`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 8.4 解散房间
+
+**接口**: `POST /api/party/rooms/:roomId/dismiss`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 8.5 离开房间
+
+**接口**: `POST /api/party/rooms/:roomId/leave`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 8.6 获取房间详情
+
+**接口**: `GET /api/party/rooms/:roomId`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 8.7 获取房间消息
+
+**接口**: `GET /api/party/messages/:roomId?page=1&limit=50`
+
+**Header**: `Authorization: Bearer <token>`
+
+---
+
+### 8.8 发送房间消息
+
+**接口**: `POST /api/party/messages/:roomId`
+
+**Header**: `Authorization: Bearer <token>`
+
+**请求Body**:
+```json
+{
+  "content": "大家好！"
+}
+```
+
+---
+
+## 9. 实时通信（Socket.IO）
+
+### 9.1 连接地址
+
+**WebSocket URL**: `ws://server-url`
+
+### 9.2 认证方式
+
+连接时携带JWT Token：
+```javascript
+const socket = io('ws://server-url', {
+  auth: {
+    token: 'Bearer <your_token>'
+  }
+});
+```
+
+### 9.3 Whisper聊天事件
+
+**加入房间**:
+```javascript
+socket.emit('join_room', { roomId: 'room123' });
+```
+
+**发送消息**:
+```javascript
+socket.emit('send_message', {
+  roomId: 'room123',
+  content: '你好！'
+});
+```
+
+**接收消息**:
+```javascript
+socket.on('receive_message', (data) => {
+  console.log('收到消息:', data);
+});
+```
+
+### 9.4 Party群聊事件
+
+**加入派对**:
+```javascript
+socket.emit('join_party', { roomId: 'party123' });
+```
+
+**发送群聊消息**:
+```javascript
+socket.emit('party_message', {
+  roomId: 'party123',
+  content: '大家好！'
+});
+```
+
+**离开派对**:
+```javascript
+socket.emit('leave_party', { roomId: 'party123' });
+```
+
+---
+
+## 10. 状态码说明
+
+- `200`: 成功
+- `201`: 创建成功
+- `400`: 参数错误
+- `401`: 未授权（Token无效或过期）
+- `404`: 资源不存在
+- `500`: 服务器内部错误
+
+---
+
+## 11. 测试建议
+
+### 11.1 基础测试流程
+
+1. 注册用户：`POST /api/auth/register`
+2. 登录获取Token：`POST /api/auth/login`
+3. 创建帖子：`POST /api/posts`（携带Token）
+4. 点赞帖子：`POST /api/posts/:id/like`
+5. 评论帖子：`POST /api/posts/:id/comment`
+6. 获取通知：`GET /api/notifications`
+7. 发送私信：`POST /api/whisper/message/:roomId`
+
+### 11.2 错误测试
+
+- 不带Token访问需要认证的接口（期望401）
+- 使用过期Token访问接口（期望401）
+- 参数缺失或格式错误（期望400）
+- 访问不存在的资源（期望404）
+
+---
+
+## 12. 注意事项
+
+### 12.1 Token有效期
+
+- JWT Token有效期为7天
+- Token过期后需要重新登录获取新Token
+- 建议客户端存储Token时检查有效期
+
+### 12.2 文件上传限制
+
+- 图片上传最多2张
+- 文件类型限制为图片格式
+- 文件大小建议不超过5MB
+
+### 12.3 实时消息
+
+- Socket.IO连接需要JWT认证
+- 断线后会自动重连
+- 消息格式为JSON
+
+### 12.4 分页参数
+
+- 默认page=1, limit=20
+- 最大limit=100
+- 使用skip+limit实现分页
