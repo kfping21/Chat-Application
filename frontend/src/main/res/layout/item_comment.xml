@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:layout_marginBottom="8dp"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <!-- Avatar Background Glow (for hug) -->
+        <com.zjgsu.treehole.ui.widget.AvatarHaloView
+            android:id="@+id/view_avatar_halo"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:alpha="0"
+            app:layout_constraintTop_toTopOf="@id/iv_comment_avatar"
+            app:layout_constraintBottom_toBottomOf="@id/iv_comment_avatar"
+            app:layout_constraintStart_toStartOf="@id/iv_comment_avatar"
+            app:layout_constraintEnd_toEndOf="@id/iv_comment_avatar" />
+
+        <ImageView
+            android:id="@+id/iv_comment_avatar"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@drawable/bg_avatar_circle"
+            android:clipToOutline="true"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Received Hug Badge -->
+        <TextView
+            android:id="@+id/tv_received_hug"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_ai_notice_chip"
+            android:backgroundTint="#15FF4D4F"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:text="收到了抱抱"
+            android:textColor="#FF4D4F"
+            android:textSize="9sp"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true"
+            app:layout_constraintStart_toStartOf="@id/iv_comment_avatar"
+            app:layout_constraintEnd_toEndOf="@id/iv_comment_avatar"
+            app:layout_constraintTop_toBottomOf="@id/iv_comment_avatar" />
+
+        <TextView
+            android:id="@+id/tv_comment_username"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="匿名用户"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toEndOf="@id/iv_comment_avatar"
+            app:layout_constraintTop_toTopOf="@id/iv_comment_avatar" />
+
+        <TextView
+            android:id="@+id/tv_comment_author"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/bg_ai_notice_chip"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="1dp"
+            android:text="作者"
+            android:textColor="@color/gold_primary"
+            android:textSize="10sp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/tv_comment_username"
+            app:layout_constraintStart_toEndOf="@id/tv_comment_username"
+            app:layout_constraintTop_toTopOf="@id/tv_comment_username" />
+
+        <TextView
+            android:id="@+id/tv_comment_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1小时前"
+            android:textColor="@color/text_hint"
+            android:textSize="11sp"
+            app:layout_constraintStart_toStartOf="@id/tv_comment_username"
+            app:layout_constraintTop_toBottomOf="@id/tv_comment_username" />
+
+        <ImageButton
+            android:id="@+id/btn_comment_more"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="更多"
+            android:padding="4dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_more_vertical"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/iv_comment_avatar"
+            app:layout_constraintEnd_toStartOf="@id/btn_comment_like"
+            app:layout_constraintTop_toTopOf="@id/iv_comment_avatar"
+            app:tint="@color/text_hint" />
+
+        <LinearLayout
+            android:id="@+id/btn_comment_like"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="4dp"
+            app:layout_constraintBottom_toBottomOf="@id/iv_comment_avatar"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/iv_comment_avatar">
+
+            <ImageView
+                android:id="@+id/iv_comment_like_icon"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_action_heart_outline"
+                app:tint="@color/text_hint" />
+
+            <TextView
+                android:id="@+id/tv_comment_likes"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="23"
+                android:textColor="@color/text_hint"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_comment_content"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:lineSpacingMultiplier="1.4"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="@id/tv_comment_username"
+            app:layout_constraintTop_toBottomOf="@id/tv_comment_time" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Hug Animation overlay (outside ConstraintLayout to prevent affecting list spacing) -->
+    <com.zjgsu.treehole.ui.widget.HugAnimationView
+        android:id="@+id/hug_animation_view"
+        android:layout_width="100dp"
+        android:layout_height="80dp"
+        android:layout_gravity="end|center_vertical"
+        android:layout_marginEnd="16dp"
+        android:visibility="invisible"
+        android:elevation="10dp" />
+
+</FrameLayout>

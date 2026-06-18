@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Outline person icon -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@color/text_muted"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M16,7a4,4 0,1 1,-8 0a4,4 0,0 1,8 0zM12,14c-4,0 -7,1.79 -7,4v1h14v-1c0,-2.21 -3,-4 -7,-4z" />
+</vector>
