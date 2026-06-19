@@ -3,15 +3,21 @@ info:
   title: Treehole Chat API
   version: 1.0.0
   description: |
-    面向树洞聊天业务的作业接口（认证 + 帖子 CRUD + 分页筛选）。
-    使用前请先配置 backend/.env 中 DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME，
-    并确保数据库已执行 backend/sql/init.sql。
+    树洞聊天应用API接口文档。
+    基于MongoDB + Express + Socket.IO架构。
+    使用JWT认证，支持实时通信。
 servers:
-  - url: http://localhost:3000
+  - url: http://<电脑内网IP>:3000
+    description: 本地部署服务器（移动端通过内网访问）
+security:
+  - bearerAuth: []
+
 paths:
+  # 认证接口
   /api/auth/register:
     post:
-      summary: 注册用户（映射到 users）
+      summary: 用户注册
+      tags: [认证]
       requestBody:
         required: true
         content:
@@ -20,17 +26,36 @@ paths:
               type: object
               required: [username, password]
               properties:
-                username: { type: string }
-                password: { type: string }
-                displayName: { type: string }
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 20
+                password:
+                  type: string
+                  minLength: 6
+                nickname:
+                  type: string
       responses:
         '201':
           description: 注册成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
         '400':
-          description: 参数错误
+          description: 用户名已存在或参数错误
+
   /api/auth/login:
     post:
-      summary: 登录（使用注册后的用户名和密码）
+      summary: 用户登录
+      tags: [认证]
       requestBody:
         required: true
         content:
@@ -39,436 +64,421 @@ paths:
               type: object
               required: [username, password]
               properties:
-                username: { type: string }
-                password: { type: string }
+                username:
+                  type: string
+                password:
+                  type: string
       responses:
         '200':
           description: 登录成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
         '401':
-          description: 认证失败
-  /api/auth/logout:
-    post:
-      summary: 登出
+          description: 用户名或密码错误
+
+  /api/auth/me:
+    get:
+      summary: 获取当前用户信息
+      tags: [认证]
       security:
         - bearerAuth: []
       responses:
-        '200': { description: 成功 }
-        '401': { description: 未授权 }
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: 未授权
+
+  # 帖子接口
   /api/posts:
-    get:
-      summary: 获取公开帖子列表（分页 + 筛选）
-      parameters:
-        - in: query
-          name: page
-          schema: { type: integer, default: 1, minimum: 1 }
-        - in: query
-          name: size
-          schema: { type: integer, default: 10, minimum: 1, maximum: 50 }
-        - in: query
-          name: emotionCode
-          schema: { type: string }
-      responses:
-        '200': { description: 成功 }
-  /api/topics/{topicId}/posts:
-    get:
-      summary: 按话题获取公开帖子
-      parameters:
-        - in: path
-          name: topicId
-          required: true
-          schema: { type: integer, minimum: 1 }
-        - in: query
-          name: page
-          schema: { type: integer, default: 1, minimum: 1 }
-        - in: query
-          name: size
-          schema: { type: integer, default: 10, minimum: 1, maximum: 50 }
-      responses:
-        '200': { description: 成功 }
     post:
       summary: 创建帖子
+      tags: [帖子]
       security:
         - bearerAuth: []
       requestBody:
         required: true
         content:
-          application/json:
-            schema:
-              type: object
-              required: [content, emotionCode]
-              properties:
-                content: { type: string, maxLength: 500 }
-                emotionCode: { type: string }
-                topicIds:
-                  type: array
-                  items: { type: integer, minimum: 1 }
-                allowComments: { type: boolean }
-                isPublic: { type: boolean }
-      responses:
-        '201': { description: 创建成功 }
-        '400': { description: 参数错误 }
-        '401': { description: 未授权 }
-  /api/posts/{id}:
-    get:
-      summary: 获取单个帖子
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
-      responses:
-        '200': { description: 成功 }
-        '404': { description: 不存在 }
-    put:
-      summary: 更新帖子（仅作者）
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                content: { type: string, maxLength: 500 }
-                emotionCode: { type: string }
-                topicIds:
-                  type: array
-                  items: { type: integer, minimum: 1 }
-                allowComments: { type: boolean }
-                isPublic: { type: boolean }
-      responses:
-        '200': { description: 更新成功 }
-        '400': { description: 参数错误 }
-        '401': { description: 未授权 }
-        '404': { description: 不存在或无权限 }
-    delete:
-      summary: 删除帖子（仅作者）
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
-      responses:
-        '200': { description: 删除成功 }
-        '401': { description: 未授权 }
-        '404': { description: 不存在或无权限 }
-  /api/posts/{id}/comments:
-    get:
-      summary: 获取评论列表
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
-        - in: query
-          name: page
-          schema: { type: integer, default: 1, minimum: 1 }
-        - in: query
-          name: size
-          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
-      responses:
-        '200': { description: 成功 }
-        '404': { description: 帖子不存在 }
-    post:
-      summary: 发表评论
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
-      requestBody:
-        required: true
-        content:
-          application/json:
+          multipart/form-data:
             schema:
               type: object
               required: [content]
               properties:
-                content: { type: string, maxLength: 300 }
-                parentCommentId: { type: integer, minimum: 1, nullable: true }
+                content:
+                  type: string
+                  maxLength: 2000
+                mood:
+                  type: string
+                images:
+                  type: array
+                  maxItems: 2
+                  items:
+                    type: string
+                    format: binary
       responses:
-        '201': { description: 创建成功 }
-        '400': { description: 参数错误 }
-        '401': { description: 未授权 }
-        '404': { description: 帖子不存在 }
-  /api/posts/{id}/like:
-    post:
-      summary: 帖子点赞
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
-      responses:
-        '200': { description: 成功 }
-        '401': { description: 未授权 }
-        '404': { description: 帖子不存在 }
-    delete:
-      summary: 取消帖子点赞
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
-      responses:
-        '200': { description: 成功 }
-  /api/comments/{id}/like:
-    post:
-      summary: 评论点赞
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
-      responses:
-        '200': { description: 成功 }
-    delete:
-      summary: 取消评论点赞
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
-      responses:
-        '200': { description: 成功 }
-  /api/comments/{id}:
-    put:
-      summary: 更新评论（仅作者）
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer, minimum: 1 }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [content]
-              properties:
-                content: { type: string, maxLength: 300 }
-      responses:
-        '200': { description: 更新成功 }
-        '400': { description: 参数错误 }
-        '401': { description: 未授权 }
-        '404': { description: 评论不存在或无权限 }
-    delete:
-      summary: 删除评论（仅作者）
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer, minimum: 1 }
-      responses:
-        '200': { description: 删除成功 }
-        '401': { description: 未授权 }
-        '404': { description: 评论不存在或无权限 }
-  /api/comments/{id}/replies:
+        '201':
+          description: 发布成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  post:
+                    $ref: '#/components/schemas/Post'
+
+  /api/posts/feed:
     get:
-      summary: 获取评论回复列表（分页）
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer, minimum: 1 }
-        - in: query
-          name: page
-          schema: { type: integer, default: 1, minimum: 1 }
-        - in: query
-          name: size
-          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
-      responses:
-        '200': { description: 成功 }
-        '404': { description: 评论不存在 }
-  /api/meta/emotions:
-    get:
-      summary: 获取情绪字典
-      responses:
-        '200': { description: 成功 }
-  /api/discover/topics/hot:
-    get:
-      summary: 获取热门话题
-      responses:
-        '200': { description: 成功 }
-  /api/topics:
-    get:
-      summary: 获取话题列表（分页）
+      summary: 获取帖子流
+      tags: [帖子]
+      security:
+        - bearerAuth: []
       parameters:
         - in: query
           name: page
-          schema: { type: integer, default: 1, minimum: 1 }
-        - in: query
-          name: size
-          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
-        - in: query
-          name: hotOnly
-          schema: { type: boolean, default: false }
-      responses:
-        '200': { description: 成功 }
-  /api/me/summary:
-    get:
-      summary: 获取我的摘要
-      security:
-        - bearerAuth: []
-      responses:
-        '200': { description: 成功 }
-  /api/encounters/recent:
-    get:
-      summary: 获取最近相遇用户
-      security:
-        - bearerAuth: []
-      parameters:
+          schema:
+            type: integer
+            default: 1
         - in: query
           name: limit
-          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
       responses:
-        '200': { description: 成功 }
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  posts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Post'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+
+  /api/posts/{id}:
+    get:
+      summary: 获取帖子详情
+      tags: [帖子]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  post:
+                    $ref: '#/components/schemas/Post'
+                  comments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Comment'
+        '404':
+          description: 帖子不存在
+
+    put:
+      summary: 更新帖子
+      tags: [帖子]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                mood:
+                  type: string
+      responses:
+        '200':
+          description: 更新成功
+        '401':
+          description: 未授权
+        '404':
+          description: 帖子不存在
+
+    delete:
+      summary: 删除帖子
+      tags: [帖子]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 删除成功
+        '401':
+          description: 未授权
+        '404':
+          description: 帖子不存在
+
+  /api/posts/{id}/like:
+    post:
+      summary: 点赞帖子
+      tags: [帖子]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 点赞成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  likes:
+                    type: integer
+                  liked:
+                    type: boolean
+
+  /api/posts/{id}/comment:
+    post:
+      summary: 评论帖子
+      tags: [帖子]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  maxLength: 500
+      responses:
+        '201':
+          description: 评论成功
+
+  # 用户接口
+  /api/user/profile:
+    put:
+      summary: 更新个人资料
+      tags: [用户]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nickname:
+                  type: string
+                bio:
+                  type: string
+                  maxLength: 200
+      responses:
+        '200':
+          description: 更新成功
+
+  /api/user/avatar:
+    post:
+      summary: 上传头像
+      tags: [用户]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: 上传成功
+
+  /api/user/{id}:
+    get:
+      summary: 获取用户信息
+      tags: [用户]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  # 通知接口
   /api/notifications:
     get:
       summary: 获取通知列表
+      tags: [通知]
       security:
         - bearerAuth: []
       parameters:
         - in: query
           name: page
-          schema: { type: integer, default: 1, minimum: 1 }
+          schema:
+            type: integer
+            default: 1
         - in: query
-          name: size
-          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+          name: limit
+          schema:
+            type: integer
+            default: 20
       responses:
-        '200': { description: 成功 }
-    delete:
-      summary: 清理通知（可选仅清理已读）
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: query
-          name: readOnly
-          schema: { type: boolean, default: false }
-      responses:
-        '200': { description: 成功 }
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  unreadCount:
+                    type: integer
+
   /api/notifications/read-all:
-    post:
-      summary: 全部通知标记已读
+    put:
+      summary: 全部标记已读
+      tags: [通知]
       security:
         - bearerAuth: []
       responses:
-        '200': { description: 成功 }
-  /api/notifications/{id}/read:
+        '200':
+          description: 成功
+
+  # 私信接口
+  /api/whisper/rooms:
+    get:
+      summary: 获取聊天房间列表
+      tags: [私信]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rooms:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChatRoom'
+
+  /api/whisper/message/{roomId}:
     post:
-      summary: 单条通知标记已读
+      summary: 发送消息
+      tags: [私信]
       security:
         - bearerAuth: []
       parameters:
         - in: path
-          name: id
+          name: roomId
           required: true
-          schema: { type: integer }
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
       responses:
-        '200': { description: 成功 }
-        '404': { description: 通知不存在 }
-  /api/notifications/{id}:
-    delete:
-      summary: 删除单条通知
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer, minimum: 1 }
-      responses:
-        '200': { description: 成功 }
-        '404': { description: 通知不存在 }
-  /api/messages/inbox:
+        '201':
+          description: 发送成功
+
+  # 群聊接口
+  /api/party/rooms:
     get:
-      summary: 获取私信收件箱
+      summary: 获取派对房间列表
+      tags: [群聊]
       security:
         - bearerAuth: []
-      parameters:
-        - in: query
-          name: page
-          schema: { type: integer, default: 1, minimum: 1 }
-        - in: query
-          name: size
-          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
       responses:
-        '200': { description: 成功 }
-  /api/messages/sent:
-    get:
-      summary: 获取私信发件箱
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: query
-          name: page
-          schema: { type: integer, default: 1, minimum: 1 }
-        - in: query
-          name: size
-          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
-      responses:
-        '200': { description: 成功 }
-  /api/messages/conversation:
-    get:
-      summary: 获取与指定用户的会话消息（双向）
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: query
-          name: peerUserId
-          required: true
-          schema: { type: integer, minimum: 1 }
-        - in: query
-          name: page
-          schema: { type: integer, default: 1, minimum: 1 }
-        - in: query
-          name: size
-          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
-      responses:
-        '200': { description: 成功 }
-        '400': { description: 参数错误 }
-        '404': { description: 用户不存在 }
-  /api/messages/conversations:
-    get:
-      summary: 获取私信会话列表（按最近消息）
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: query
-          name: page
-          schema: { type: integer, default: 1, minimum: 1 }
-        - in: query
-          name: size
-          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
-      responses:
-        '200': { description: 成功 }
-        '404': { description: 用户不存在 }
-  /api/messages:
+        '200':
+          description: 成功
+
     post:
-      summary: 发送私信
+      summary: 创建派对房间
+      tags: [群聊]
       security:
         - bearerAuth: []
       requestBody:
@@ -477,27 +487,201 @@ paths:
           application/json:
             schema:
               type: object
-              required: [receiverUserId, content]
+              required: [name]
               properties:
-                receiverUserId: { type: integer, minimum: 1 }
-                content: { type: string, maxLength: 500 }
+                name:
+                  type: string
+                description:
+                  type: string
       responses:
-        '201': { description: 创建成功 }
-  /api/messages/{id}/read:
+        '201':
+          description: 创建成功
+
+  /api/party/rooms/{roomId}/join:
     post:
-      summary: 私信标记已读
+      summary: 加入房间
+      tags: [群聊]
       security:
         - bearerAuth: []
       parameters:
         - in: path
-          name: id
+          name: roomId
           required: true
-          schema: { type: integer }
+          schema:
+            type: string
       responses:
-        '200': { description: 成功 }
-        '404': { description: 消息不存在 }
+        '200':
+          description: 加入成功
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        nickname:
+          type: string
+        avatar:
+          type: string
+        bio:
+          type: string
+        following:
+          type: array
+          items:
+            type: string
+        followers:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Post:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        content:
+          type: string
+        mood:
+          type: string
+        imageUrls:
+          type: array
+          items:
+            type: string
+        likes:
+          type: integer
+        commentCount:
+          type: integer
+        likedBy:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/User'
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+        postId:
+          type: string
+        userId:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/User'
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        recipientId:
+          type: string
+        senderId:
+          type: string
+        type:
+          type: string
+          enum: [like, comment, follow]
+        postId:
+          type: string
+        commentId:
+          type: string
+        message:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        sender:
+          $ref: '#/components/schemas/User'
+
+    ChatRoom:
+      type: object
+      properties:
+        id:
+          type: string
+        participants:
+          type: array
+          items:
+            type: string
+        lastMessage:
+          type: string
+        lastActivity:
+          type: string
+          format: date-time
+
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        chatId:
+          type: string
+        senderId:
+          type: string
+        senderNickname:
+          type: string
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    PartyRoom:
+      type: object
+      properties:
+        id:
+          type: string
+        creator:
+          type: string
+        participants:
+          type: array
+          items:
+            type: string
+        name:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    PartyMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        roomId:
+          type: string
+        senderId:
+          type: string
+        senderNickname:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time

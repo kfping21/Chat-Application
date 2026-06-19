@@ -1,235 +1,277 @@
-# 数据库设计文档（含 ER 图）
+# 数据库设计文档（MongoDB模型设计）
 
 ## 1. 设计目标
 
-本数据库用于“匿名树洞聊天系统”后端，覆盖以下核心业务：
+本数据库用于"匿名树洞聊天系统"后端，覆盖以下核心业务：
 
-- 用户匿名身份管理
-- 帖子发布与话题归类
-- 评论与点赞互动
-- 通知中心
-- 私信与“相遇”关系沉淀
+- 用户注册、登录与个人资料管理
+- 帖子发布与互动（点赞、评论）
+- 通知中心与实时推送
+- 私信聊天（Whisper）与群聊派对（Party）
+- 用户关注与社交关系
 
-数据库类型：MySQL 8.x（字符集 `utf8mb4`，排序规则 `utf8mb4_unicode_ci`）。
+数据库类型：MongoDB（文档数据库），使用Mongoose ODM进行模型定义。
 
 ---
 
-## 2. ER 图（逻辑模型）
+## 2. 数据模型概览
 
-```mermaid
-erDiagram
-    users ||--o{ posts : publishes
-    emotions ||--o{ posts : tags
-    posts ||--o{ comments : has
-    users ||--o{ comments : writes
-    comments ||--o{ comments : replies_to
+### 核心模型：
+- `User` - 用户模型
+- `Post` - 帖子模型
+- `Comment` - 评论模型
+- `Notification` - 通知模型
+- `ChatMessage` - 私信消息模型
+- `ChatRoom` - 私信房间模型
+- `PartyRoom` - 群聊房间模型
+- `PartyMessage` - 群聊消息模型
 
-    posts ||--o{ post_topics : mapped_by
-    topics ||--o{ post_topics : mapped_by
+---
 
-    users ||--o{ post_likes : likes
-    posts ||--o{ post_likes : liked_by
+## 3. 模型详细设计
 
-    users ||--o{ comment_likes : likes
-    comments ||--o{ comment_likes : liked_by
+### 3.1 User模型（用户表）
 
-    users ||--o{ notifications : receives
+**文件位置**: `backend/src/models/User.js`
 
-    users ||--o{ private_messages : sends
-    users ||--o{ private_messages : receives
+**字段设计**:
+```javascript
+{
+  username: String,           // 用户名（唯一，3-20字符）
+  password: String,           // 密码（bcrypt加密，最少6位）
+  nickname: String,           // 昵称（默认为用户名）
+  avatar: String,             // 头像URL
+  bio: String,                // 个人简介（最多200字）
+  isOnline: Boolean,          // 在线状态
+  lastOnlineAt: Date,         // 最后在线时间
+  following: [ObjectId],      // 关注列表（引用User）
+  followers: [ObjectId],      // 粉丝列表（引用User）
+  createdAt: Date             // 注册时间
+}
+```
 
-    users ||--o{ encounters : owns
-    users ||--o{ encounters : targets
+**索引设计**:
+- `username`: 唯一索引（快速查找用户）
+- `following/followers`: 数组索引（社交关系查询）
+
+**特性**:
+- 密码自动加密（pre-save hook）
+- 密码验证方法（comparePassword）
+- 支持关注/粉丝关系
+
+---
+
+### 3.2 Post模型（帖子表）
+
+**文件位置**: `backend/src/models/Post.js`
+
+**字段设计**:
+```javascript
+{
+  userId: ObjectId,           // 发布者ID（引用User）
+  content: String,            // 帖子内容（最多2000字）
+  mood: String,               // 心情标签（默认"平静"）
+  imageUrls: [String],         // 图片URL数组（最多2张）
+  likes: Number,              // 点赞数（冗余计数）
+  commentCount: Number,       // 评论数（冗余计数）
+  likedBy: [ObjectId],        // 点赞用户列表（引用User）
+  createdAt: Date             // 发布时间
+}
+```
+
+**索引设计**:
+- `userId`: 单字段索引（用户帖子查询）
+- `createdAt`: 单字段索引（时间线排序）
+- `userId + createdAt`: 复合索引（用户帖子时间排序）
+
+**特性**:
+- 支持图片上传（最多2张）
+- 冗余计数优化查询性能
+- 点赞用户列表防止重复点赞
+
+---
+
+### 3.3 Comment模型（评论表）
+
+**文件位置**: `backend/src/models/Comment.js`
+
+**字段设计**:
+```javascript
+{
+  postId: ObjectId,           // 帖子ID（引用Post）
+  userId: ObjectId,           // 评论者ID（引用User）
+  content: String,            // 评论内容（最多500字）
+  createdAt: Date             // 评论时间
+}
+```
+
+**索引设计**:
+- `postId`: 单字段索引（帖子评论查询）
+- `userId`: 单字段索引（用户评论查询）
+- `postId + createdAt`: 复合索引（帖子评论时间排序）
+
+---
+
+### 3.4 Notification模型（通知表）
+
+**文件位置**: `backend/src/models/Notification.js`
+
+**字段设计**:
+```javascript
+{
+  recipientId: ObjectId,      // 接收者ID（引用User）
+  senderId: ObjectId,         // 发送者ID（引用User）
+  type: String,               // 通知类型（like/comment/follow）
+  postId: ObjectId,           // 相关帖子ID（可选）
+  commentId: ObjectId,        // 相关评论ID（可选）
+  message: String,            // 通知消息内容
+  read: Boolean,              // 已读状态
+  createdAt: Date             // 创建时间
+}
+```
+
+**索引设计**:
+- `recipientId + createdAt`: 复合索引（用户通知列表）
+- `recipientId + read`: 复合索引（未读通知查询）
+
+**特性**:
+- 支持三种通知类型：点赞、评论、关注
+- 关联业务对象ID便于跳转
+- 已读状态管理
+
+---
+
+### 3.5 ChatMessage模型（私信消息表）
+
+**文件位置**: `backend/src/models/ChatMessage.js`
+
+**字段设计**:
+```javascript
+{
+  chatId: String,             // 聊天房间ID（组合ID）
+  senderId: String,           // 发送者ID
+  senderNickname: String,     // 发送者昵称
+  content: String,            // 消息内容
+  timestamp: Date             // 消息时间
+}
+```
+
+**索引设计**:
+- `chatId`: 单字段索引（房间消息查询）
+- `chatId + timestamp`: 复合索引（聊天历史查询）
+
+---
+
+### 3.6 ChatRoom模型（私信房间表）
+
+**文件位置**: `backend/src/models/ChatRoom.js`
+
+**字段设计**:
+```javascript
+{
+  participants: [ObjectId],   // 参与者列表（引用User）
+  lastMessage: String,       // 最后一条消息
+  lastActivity: Date          // 最后活动时间
+}
+```
+
+**索引设计**:
+- `participants`: 数组索引（查找房间）
+- `lastActivity`: 单字段索引（房间列表排序）
+
+---
+
+### 3.7 Party模型（群聊派对）
+
+**文件位置**: `backend/src/models/Party.js`
+
+包含两个子模型：
+
+#### PartyRoom模型
+```javascript
+{
+  creator: ObjectId,          // 创建者ID（引用User）
+  participants: [ObjectId],   // 参与者列表（引用User）
+  name: String,               // 房间名称
+  description: String,        // 房间描述
+  createdAt: Date             // 创建时间
+}
+```
+
+#### PartyMessage模型
+```javascript
+{
+  roomId: ObjectId,           // 房间ID（引用PartyRoom）
+  senderId: ObjectId,         // 发送者ID（引用User）
+  senderNickname: String,    // 发送者昵称
+  content: String,            // 消息内容
+  createdAt: Date             // 消息时间
+}
 ```
 
 ---
 
-## 3. 表结构设计
+## 4. 索引策略
 
-### 3.1 `users`（用户表）
+### 4.1 单字段索引
+- User.username（唯一索引）
+- Post.userId, Post.createdAt
+- Comment.postId, Comment.userId
+- Notification.recipientId
 
-- 主键：`id`
-- 唯一键：`anonymous_name`
-- 核心字段：
-  - `anonymous_name`：匿名昵称
-  - `auth_password`：认证密码（仅用于登录）
-  - `avatar_color`：头像主题色
-  - `joined_at`：加入时间
-  - `status`：用户状态
-- 说明：作为大多数业务表的外键来源。
+### 4.2 复合索引
+- Post(userId + createdAt) - 用户帖子时间排序
+- Comment(postId + createdAt) - 帖子评论时间排序
+- Notification(recipientId + createdAt) - 用户通知列表
+- ChatMessage(chatId + timestamp) - 聊天历史查询
 
-### 3.2 `emotions`（情绪字典表）
-
-- 主键：`id`
-- 唯一键：`code`
-- 核心字段：`code`, `display_name`
-- 说明：用于帖子情绪分类，避免文本重复存储。
-
-### 3.3 `topics`（话题表）
-
-- 主键：`id`
-- 唯一键：`name`
-- 核心字段：`name`, `is_hot`
-- 说明：支持热门话题展示与帖子归类。
-
-### 3.4 `posts`（帖子表）
-
-- 主键：`id`
-- 外键：
-  - `user_id -> users.id`
-  - `emotion_id -> emotions.id`
-- 核心字段：
-  - `content`（500 字以内）
-  - `allow_comments`、`is_public`
-  - `likes_count`、`comments_count`（冗余计数，提升查询性能）
-  - `created_at`、`updated_at`
-- 索引：
-  - `idx_posts_created_at (created_at)`
-  - `idx_posts_emotion_created (emotion_id, created_at)`
-
-### 3.5 `post_topics`（帖子-话题关联表）
-
-- 复合主键：`(post_id, topic_id)`
-- 外键：
-  - `post_id -> posts.id ON DELETE CASCADE`
-  - `topic_id -> topics.id ON DELETE CASCADE`
-- 说明：实现帖子与话题多对多关系。
-
-### 3.6 `comments`（评论表）
-
-- 主键：`id`
-- 外键：
-  - `post_id -> posts.id ON DELETE CASCADE`
-  - `user_id -> users.id`
-  - `parent_comment_id -> comments.id ON DELETE SET NULL`
-- 核心字段：
-  - `floor_no`：楼层号
-  - `content`（300 字以内）
-  - `likes_count`
-  - `created_at`
-- 索引：
-  - `idx_comments_post_created (post_id, created_at)`
-  - `idx_comments_parent (parent_comment_id)`
-
-### 3.7 `post_likes`（帖子点赞表）
-
-- 复合主键：`(post_id, user_id)`（天然去重）
-- 外键：
-  - `post_id -> posts.id ON DELETE CASCADE`
-  - `user_id -> users.id ON DELETE CASCADE`
-- 核心字段：`created_at`
-
-### 3.8 `comment_likes`（评论点赞表）
-
-- 复合主键：`(comment_id, user_id)`（天然去重）
-- 外键：
-  - `comment_id -> comments.id ON DELETE CASCADE`
-  - `user_id -> users.id ON DELETE CASCADE`
-- 核心字段：`created_at`
-
-### 3.9 `encounters`（相遇关系表）
-
-- 主键：`id`
-- 唯一键：`uq_encounters_pair (user_id, target_user_id)`
-- 外键：
-  - `user_id -> users.id ON DELETE CASCADE`
-  - `target_user_id -> users.id ON DELETE CASCADE`
-- 核心字段：`met_at`
-- 说明：记录用户之间“最近一次相遇”时间，可用于“最近联系/遇见的人”。
-
-### 3.10 `notifications`（通知表）
-
-- 主键：`id`
-- 外键：`user_id -> users.id ON DELETE CASCADE`
-- 核心字段：
-  - `type`：通知类型（如 `post_like` / `comment` / `comment_reply`）
-  - `ref_id`：关联业务对象 ID
-  - `payload`：JSON 扩展信息
-  - `is_read`：已读标记
-  - `created_at`
-- 索引：
-  - `idx_notifications_user_read (user_id, is_read, created_at)`
-
-### 3.11 `private_messages`（私信表）
-
-- 主键：`id`
-- 外键：
-  - `sender_user_id -> users.id ON DELETE CASCADE`
-  - `receiver_user_id -> users.id ON DELETE CASCADE`
-- 核心字段：
-  - `content`（500 字以内）
-  - `is_read`
-  - `created_at`
-- 索引：
-  - `idx_private_messages_pair_time (sender_user_id, receiver_user_id, created_at)`
-  - `idx_private_messages_receiver_read (receiver_user_id, is_read, created_at)`
-
-### 3.12 `user_sessions`（用户会话表）
-
-- 主键：`id`
-- 唯一键：`token`
-- 外键：`user_id -> users.id ON DELETE CASCADE`
-- 核心字段：
-  - `token`：Bearer Token
-  - `is_active`：会话是否有效
-  - `created_at`：创建时间
-- 索引：
-  - `idx_user_sessions_user_active_created (user_id, is_active, created_at)`
-- 说明：用于认证会话，不与业务通知混用。
+### 4.3 数组索引
+- User.following/followers - 社交关系查询
+- Post.likedBy - 点赞用户检查
+- ChatRoom.participants - 房间参与者查询
 
 ---
 
-## 4. 关系与基数说明
+## 5. 数据一致性设计
 
-- 用户与帖子：`1:N`
-- 用户与评论：`1:N`
-- 帖子与评论：`1:N`
-- 评论自关联（回复）：`1:N`（父评论可为空）
-- 帖子与话题：`N:M`（通过 `post_topics`）
-- 用户与帖子点赞：`N:M`（通过 `post_likes`）
-- 用户与评论点赞：`N:M`（通过 `comment_likes`）
-- 用户与通知：`1:N`
-- 用户与私信：发送 `1:N`，接收 `1:N`
-- 用户与相遇记录：`1:N`（面向目标用户）
-- 用户与会话：`1:N`
+### 5.1 点赞一致性
+- 点赞时：同时更新Post.likes计数和likedBy数组
+- 取消点赞时：同步减少计数和移除用户ID
 
----
+### 5.2 评论一致性
+- 评论时：同时创建Comment并增加Post.commentCount
+- 删除评论时：同步减少计数
 
-## 5. 约束与一致性设计
+### 5.3 关注一致性
+- 关注时：在双方User文档中更新following和followers数组
+- 取消关注时：同步移除双方关系
 
-- 所有核心业务关系均通过外键保证引用完整性。
-- 关联表采用复合主键防止重复点赞/重复关联。
-- 多处使用 `ON DELETE CASCADE`，确保主记录删除后关联数据自动清理。
-- 评论父子关系使用 `ON DELETE SET NULL`，避免删除父评论后整棵回复链丢失。
-- 冗余计数字段（`likes_count`, `comments_count`）用于性能优化，需在业务事务中维护。
+### 5.4 通知一致性
+- 点赞/评论/关注时：创建对应类型的通知
+- 取消点赞时：删除对应通知（防止重复）
 
 ---
 
-## 6. 索引设计与性能考虑
+## 6. 技术选型理由
 
-- 时间线类查询：`posts.created_at`、`comments(post_id, created_at)`。
-- 分类筛选：`posts(emotion_id, created_at)`。
-- 通知中心：`notifications(user_id, is_read, created_at)`。
-- 私信收件箱/会话：`private_messages(receiver_user_id, is_read, created_at)` 与 `(sender_user_id, receiver_user_id, created_at)`。
+### MongoDB优势：
+- 文档模型更适合社交应用
+- 无需预定义表结构，灵活扩展
+- 内置支持数组、嵌套文档
+- 天然支持JSON格式
 
-设计原则：优先覆盖高频读路径，避免全表扫描。
-
----
-
-## 7. 规范化说明
-
-- 字典数据（情绪、话题）独立建表，满足复用与一致性。
-- 多对多关系拆分为中间表，满足第三范式。
-- 兼顾读性能，在帖子与评论表保留可控冗余统计字段。
+### 选择MongoDB的原因：
+- 社交应用数据结构灵活
+- 需要频繁存储数组数据（关注列表、点赞列表）
+- 与前端JSON数据格式天然匹配
+- 开发效率更高
 
 ---
 
-## 8. 初始化与测试数据说明
+## 7. 后续优化方向
 
-`backend/sql/init.sql` 已包含：
-
-- 库与表结构创建脚本
-- 基础字典数据（`emotions`, `topics`）
-- 示例用户、帖子、评论、通知、私信数据
-
-可用于本地联调、接口验收与演示。
+- 引入Redis缓存热门帖子
+- 实现消息队列异步处理通知
+- 增加数据分片支持大规模用户
+- 完善数据统计与报表功能
+- 实现数据生命周期管理（自动清理过期数据）
