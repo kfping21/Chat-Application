@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mood selector item (horizontal RecyclerView in PostSecret) -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/mood_item_container"
+    android:layout_width="68dp"
+    android:layout_height="76dp"
+    android:orientation="vertical"
+    android:background="@drawable/bg_chip_default"
+    android:padding="8dp"
+    android:layout_marginEnd="8dp"
+    android:gravity="center">
+
+    <TextView
+        android:id="@+id/tv_mood_emoji"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🌙"
+        android:textSize="22sp"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:id="@+id/tv_mood_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="孤独"
+        android:textSize="10sp"
+        android:textColor="@color/text_muted"
+        android:gravity="center" />
+
+</LinearLayout>
